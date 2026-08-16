@@ -1,0 +1,80 @@
+/* Central tuning. Anything a designer would fiddle with lives here. */
+
+export const CFG = {
+  /* Layout — fractions of the canvas height unless noted. */
+  groundY: 0.86,          // where stems meet the soil
+  horizon: 0.52,          // sky/hill split
+  maxStemH: 0.60,         // tallest a stem may reach, as a fraction of height
+  headScale: 1.8,         // blooms are drawn well above life size so they are thumb-sized
+
+  /* Round pacing */
+  roundSeconds: 45,
+  strikesAllowed: 3,
+  baseSpawnGap: 1150,     // ms between sprouts on round 1
+  spawnGapFloor: 460,     // fastest we ever spawn
+  spawnGapDecay: 0.90,    // multiplied per round
+  maxAlive: 7,
+  lifespanScale: 1.0,     // shrinks with round number
+  lifespanFloor: 0.62,
+
+  /* Quota to clear a round: grows super-linearly. Round 1 wants roughly a
+     dozen decent stems; by round 5 sloppy cutting will not keep up. */
+  quotaBase: 1250,
+  quotaGrowth: 1.30,
+
+  /* Gesture analysis */
+  strokeMaxPoints: 220,
+  strokeIdleMs: 130,      // a pause this long ends the logical stroke
+  finalizeDelay: 520,     // ms after a cut before we grade it (waits for the stroke to finish)
+  crossWindow: 900,       // ms allowed between the two strokes of a cross-cut
+  minSliceSpeed: 0.25,    // screen-heights/s below which the blade does not bite
+
+  /* Speed bands, in screen-heights per second */
+  speeds: {
+    slow:   { min: 0.20, lo: 0.45, hi: 1.15, max: 1.85, label: 'slow, controlled' },
+    steady: { min: 0.75, lo: 1.35, hi: 2.60, max: 3.60, label: 'steady' },
+    fast:   { min: 1.90, lo: 3.10, hi: 6.50, max: 9.00, label: 'fast snap' },
+  },
+
+  /* How much each part of the *technique* counts. Re-normalised when a
+     species has no angle requirement. Timing is not in here: it gates the
+     whole cut instead (see `timingGate`), because a flawless cut through a
+     closed bud is still a ruined flower. */
+  weights: { point: 0.30, angle: 0.28, speed: 0.18, pattern: 0.24 },
+
+  /* quality = mean × (worstPull …1) × (timingGate …1) */
+  timingGate: 0.30,       // score kept when the moment is completely wrong
+  worstPull: 0.28,        // share of the score held hostage by the weakest criterion
+
+  grades: [
+    { min: 0.93, name: 'Immaculate', color: '#ffe9a3', shake: 9 },
+    { min: 0.80, name: 'Clean',      color: '#a7e8a0', shake: 6 },
+    { min: 0.62, name: 'Good',       color: '#cfe0cc', shake: 4 },
+    { min: 0.40, name: 'Ragged',     color: '#e8c98a', shake: 3 },
+    { min: -1,   name: 'Butchered',  color: '#ff9d92', shake: 2 },
+  ],
+
+  comboStep: 0.15,        // multiplier gained per good cut
+  comboMax: 3.0,
+  comboKeepAbove: 0.62,   // quality needed to build the combo
+  comboBreakBelow: 0.40,  // quality that snaps it
+
+  /* Bouquet composition targets */
+  bouquet: {
+    idealGreenRatio: 0.32,
+    idealSize: 12,
+    varietyBonus: 55,
+    stemHarmonyMax: 180,
+  },
+};
+
+/* Life-cycle phase boundaries, as fractions of a stem's lifespan. */
+export const PHASE = {
+  sprout: 0.00,
+  grow:   0.16,
+  bud:    0.44,
+  bloom:  0.56,
+  peak:   0.68,
+  wilt:   0.82,
+  dead:   0.95,
+};
