@@ -13,9 +13,16 @@ export const CFG = {
   baseSpawnGap: 1150,     // ms between sprouts on round 1
   spawnGapFloor: 460,     // fastest we ever spawn
   spawnGapDecay: 0.90,    // multiplied per round
-  maxAlive: 7,
+  maxAlive: 3,            // cap on round 1, so blades have room to work
+  maxAliveStep: 3,        // rounds between each +1 to the cap
+  maxAliveCap: 6,         // cap never climbs past this
   lifespanScale: 1.0,     // shrinks with round number
   lifespanFloor: 0.62,
+
+  /* Spacing: new stems only sprout where their canopy clears its neighbours
+     by this many screen-heights, so an accidental swipe can't clip the
+     flower next door. Measured edge-to-edge between head radii. */
+  spawnClearance: 0.075,
 
   /* Quota to clear a round: grows super-linearly. Round 1 wants roughly a
      dozen decent stems; by round 5 sloppy cutting will not keep up. */

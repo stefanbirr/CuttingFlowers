@@ -141,22 +141,36 @@ export class Game {
     return Math.max(CFG.spawnGapFloor, g) * rand(1.25, 0.75);
   }
 
+  /** How many stems may stand at once, easing up a little each round. */
+  maxAliveForRound() {
+    return Math.min(CFG.maxAlive + Math.floor((this.round - 1) / CFG.maxAliveStep), CFG.maxAliveCap);
+  }
+
   spawn(ambient = false) {
     const alive = this.flowers.filter((f) => f.state === 'alive');
-    if (!ambient && alive.length >= CFG.maxAlive + Math.min(3, this.round / 2)) return;
+    if (!ambient && alive.length >= this.maxAliveForRound()) return;
 
     const species = ambient
       ? pickSpecies(this.pool.filter((p) => p.species.kind !== 'hazard'))
       : pickSpecies(this.pool);
-    const margin = 42 * this.view.scale + species.head.size * this.view.scale * 0.5;
+    // Head radius accounts for the oversized bloom art (CFG.headScale), not
+    // just the stem's footprint, so canopies actually clear each other.
+    const headR = species.head.size * this.view.scale * CFG.headScale * 0.5;
+    const margin = 22 * this.view.scale + headR;
+    const clearance = CFG.spawnClearance * this.view.h;
+
     let best = null, bestGap = -1;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
       const x = rand(this.view.w - margin, margin);
       let gap = Infinity;
-      for (const f of alive) gap = Math.min(gap, Math.abs(f.baseX - x));
+      for (const f of alive) gap = Math.min(gap, Math.abs(f.baseX - x) - headR - f.headSize * 0.5);
       if (gap > bestGap) { bestGap = gap; best = x; }
-      if (gap > 90 * this.view.scale) break;
+      if (gap > clearance) break;
     }
+    // Nowhere clear enough to sprout without crowding a neighbour — sit
+    // this tick out rather than cram two canopies together.
+    if (!ambient && alive.length > 0 && bestGap < clearance) return;
+
     this.flowers.push(new Flower(species, best, this.view, ambient ? 1 : this.round));
     if (!ambient) sound.sprout();
   }
@@ -353,7 +367,7 @@ export class Game {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
         this.spawn();
-        if (this.round >= 4 && Math.random() < 0.22) this.spawn();
+        if (this.round >= 7 && Math.random() < 0.16) this.spawn();
         this.spawnIn = this.spawnGap();
       }
 
@@ -399,7 +413,7 @@ export class Game {
       // A quiet garden keeps growing behind the title.
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
-        if (this.flowers.length < 5) this.spawn(true);
+        if (this.flowers.length < 3) this.spawn(true);
         this.spawnIn = rand(2600, 900);
       }
       for (const f of this.flowers) {
