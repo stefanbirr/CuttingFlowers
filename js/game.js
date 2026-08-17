@@ -67,9 +67,24 @@ export class Game {
   /* ── Round lifecycle ────────────────────────────────────────────── */
 
   startRun() {
+    this.mode = 'run';
     this.total = 0;
     this.round = 1;
     this.startRound();
+  }
+
+  /** Drill one species: a single stem in the middle, no clock, no quota. */
+  startPractice(species) {
+    this.mode = 'practice';
+    this.practiceSpecies = species;
+    this.practiceCuts = 0;
+    this.practiceSum = 0;
+    this.practiceBest = 0;
+    this.total = 0;
+    this.round = 1;
+    this.startRound();
+    ui.setPracticeMode(true, species);
+    ui.setPracticeStats({ cuts: 0, avg: 0, best: 0 });
   }
 
   startRound() {
@@ -97,6 +112,7 @@ export class Game {
     this.blade.enabled = true;
 
     ui.showHud(true);
+    ui.setPracticeMode(this.mode === 'practice', this.practiceSpecies);
     ui.setScore(this.total);
     ui.setRound(this.round);
     ui.setBasket(0);
@@ -124,11 +140,13 @@ export class Game {
 
   quit() {
     this.state = 'menu';
+    this.mode = 'run';
     this.blade.enabled = false;
     this.flowers.length = 0;
     this.pieces.length = 0;
     this.fx.reset();
     ui.showHud(false);
+    ui.setPracticeMode(false);
     ui.hide('screenPause');
     ui.setBest(store.get('best'));
     ui.show('screenTitle');
@@ -146,8 +164,25 @@ export class Game {
     return Math.min(CFG.maxAlive + Math.floor((this.round - 1) / CFG.maxAliveStep), CFG.maxAliveCap);
   }
 
+  /** Required gap between canopies, relaxing slowly as rounds get harder. */
+  clearanceForRound() {
+    const ease = Math.max(CFG.clearanceFloor, 1 - (this.round - 1) * CFG.clearanceEase);
+    return CFG.spawnClearance * this.view.h * ease;
+  }
+
   spawn(ambient = false) {
     const alive = this.flowers.filter((f) => f.state === 'alive');
+
+    // Practice: exactly one chosen stem, dead centre, replaced only once
+    // the last one has been cut (or has withered away).
+    if (this.mode === 'practice') {
+      if (alive.length > 0) return;
+      const sp = this.practiceSpecies;
+      this.flowers.push(new Flower(sp, this.view.w / 2, this.view, 1));
+      sound.sprout();
+      return;
+    }
+
     if (!ambient && alive.length >= this.maxAliveForRound()) return;
 
     const species = ambient
@@ -157,10 +192,10 @@ export class Game {
     // just the stem's footprint, so canopies actually clear each other.
     const headR = species.head.size * this.view.scale * CFG.headScale * 0.5;
     const margin = 22 * this.view.scale + headR;
-    const clearance = CFG.spawnClearance * this.view.h;
+    const clearance = this.clearanceForRound();
 
     let best = null, bestGap = -1;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 14; i++) {
       const x = rand(this.view.w - margin, margin);
       let gap = Infinity;
       for (const f of alive) gap = Math.min(gap, Math.abs(f.baseX - x) - headR - f.headSize * 0.5);
@@ -346,6 +381,17 @@ export class Game {
     ui.setCombo(this.combo);
     ui.setQuota(this.roundPoints, this.quota);
     ui.setScore(this.total + this.roundPoints);
+
+    if (this.mode === 'practice') {
+      this.practiceCuts++;
+      this.practiceSum += q;
+      this.practiceBest = Math.max(this.practiceBest, q);
+      ui.setPracticeStats({
+        cuts: this.practiceCuts,
+        avg: this.practiceSum / this.practiceCuts,
+        best: this.practiceBest,
+      });
+    }
   }
 
   /* ── Update ─────────────────────────────────────────────────────── */
@@ -355,20 +401,24 @@ export class Game {
     this.blade.update(now);
 
     if (this.state === 'playing') {
-      this.timeLeft -= dt;
-      const secs = this.timeLeft / 1000;
-      ui.setTime(secs);
-      const whole = Math.ceil(secs);
-      if (whole !== this.lastTickSecond && whole <= 5 && whole > 0) {
-        this.lastTickSecond = whole;
-        sound.tick(true);
+      const practice = this.mode === 'practice';
+
+      if (!practice) {
+        this.timeLeft -= dt;
+        const secs = this.timeLeft / 1000;
+        ui.setTime(secs);
+        const whole = Math.ceil(secs);
+        if (whole !== this.lastTickSecond && whole <= 5 && whole > 0) {
+          this.lastTickSecond = whole;
+          sound.tick(true);
+        }
       }
 
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
         this.spawn();
-        if (this.round >= 7 && Math.random() < 0.16) this.spawn();
-        this.spawnIn = this.spawnGap();
+        if (!practice && this.round >= 7 && Math.random() < 0.16) this.spawn();
+        this.spawnIn = practice ? CFG.practiceRespawn : this.spawnGap();
       }
 
       for (const f of this.flowers) {
@@ -408,7 +458,7 @@ export class Game {
         }
       }
 
-      if (this.timeLeft <= 0) this.endRound('time');
+      if (!practice && this.timeLeft <= 0) this.endRound('time');
     } else if (this.state === 'menu') {
       // A quiet garden keeps growing behind the title.
       this.spawnIn -= dt;

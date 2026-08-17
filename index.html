@@ -47,6 +47,13 @@
 
   <div class="hud-combo" id="hudCombo"><span id="comboValue">x2</span> combo</div>
 
+  <!-- Practice mode replaces the goal bar with the species brief -->
+  <div class="hud-practice hidden" id="hudPractice">
+    <div class="practice-name" id="practiceName">Tulip</div>
+    <div class="practice-hint" id="practiceHint"></div>
+    <div class="practice-stats" id="practiceStats">no cuts yet</div>
+  </div>
+
   <div class="hud-basket">
     <span id="basketCount">0</span>
     <span class="basket-sub">stems</span>
@@ -65,6 +72,9 @@
     <div class="best-line">Best bouquet run: <strong id="bestScore">0</strong></div>
     <div class="btn-row">
       <button class="btn primary" id="btnPlay">Start harvest</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnPractice">Practice a flower</button>
     </div>
     <div class="btn-row">
       <button class="btn" id="btnGuide">Field guide</button>
@@ -97,6 +107,17 @@
     <h2>Field guide</h2>
     <div class="guide-list" id="guideList"></div>
     <div class="btn-row"><button class="btn primary" data-close="screenGuide">Back</button></div>
+  </div>
+</div>
+
+<!-- ── Practice: pick a species ─────────────────────────────────────── -->
+<div id="screenPractice" class="layer screen hidden">
+  <div class="panel wide">
+    <h2>Practice a flower</h2>
+    <p class="panel-sub">One stem at a time, centre of the field, no clock.
+      The next one sprouts once you have cut the last.</p>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div class="btn-row"><button class="btn" data-close="screenPractice">Back</button></div>
   </div>
 </div>
 

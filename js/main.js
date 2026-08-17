@@ -25,6 +25,16 @@ on('btnPlay', () => {
   }
 });
 
+on('btnPractice', () => {
+  ui.buildPicker((species) => {
+    sound.ui();
+    ui.hide('screenPractice');
+    ui.hide('screenTitle');
+    game.startPractice(species);
+  });
+  ui.show('screenPractice');
+});
+
 on('btnGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnTutorial', () => ui.show('screenTutorial'));
 on('btnPause', () => game.pause());

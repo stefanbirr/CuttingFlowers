@@ -29,6 +29,11 @@ export const ui = {
     overReason: $('overReason'),
     finalScore: $('finalScore'),
     finalSub: $('finalSub'),
+    pickGrid: $('pickGrid'),
+    hudPractice: $('hudPractice'),
+    practiceName: $('practiceName'),
+    practiceHint: $('practiceHint'),
+    practiceStats: $('practiceStats'),
   },
 
   show(id) { $(id)?.classList.remove('hidden'); },
@@ -78,6 +83,59 @@ export const ui = {
   },
 
   setBest(v) { this.el.bestScore.textContent = Math.round(v).toLocaleString(); },
+
+  /* ── Practice mode ───────────────────────────────────────────── */
+
+  /** Swap the goal/clock chrome for the species brief, or back again. */
+  setPracticeMode(on, species) {
+    this.el.hudPractice.classList.toggle('hidden', !on);
+    document.querySelector('.hud-quota')?.classList.toggle('hidden', on);
+    this.el.strikes.classList.toggle('hidden', on);
+    // No clock and no round number when you are just drilling one species.
+    this.el.hud.querySelector('.hud-right')?.classList.toggle('hidden', on);
+    this.el.hud.querySelector('.hud-round')?.classList.toggle('hidden', on);
+    if (on && species) {
+      this.el.practiceName.textContent = species.name;
+      this.el.practiceHint.textContent = species.hint;
+      this.el.practiceStats.textContent = 'no cuts yet';
+    }
+  },
+
+  setPracticeStats({ cuts, avg, best }) {
+    this.el.practiceStats.textContent = cuts === 0
+      ? 'no cuts yet'
+      : `${cuts} cut${cuts === 1 ? '' : 's'} · avg ${Math.round(avg * 100)}% · best ${Math.round(best * 100)}%`;
+  },
+
+  /** Grid of every species you can practise on (weeds excluded). */
+  buildPicker(onPick, dpr = window.devicePixelRatio || 1) {
+    const grid = this.el.pickGrid;
+    if (grid.childElementCount) return;
+    for (const sp of SPECIES) {
+      if (!sp.cut) continue;
+      const btn = document.createElement('button');
+      btn.className = 'pick-item';
+      btn.type = 'button';
+
+      const cv = document.createElement('canvas');
+      const W = 52, H = 62;
+      cv.width = W * dpr; cv.height = H * dpr;
+      cv.style.width = `${W}px`; cv.style.height = `${H}px`;
+      drawSpecimen(cv.getContext('2d'), sp, dpr, W, H);
+
+      const name = document.createElement('span');
+      name.className = 'pick-name';
+      name.textContent = sp.name;
+
+      const tech = document.createElement('span');
+      tech.className = 'pick-tech';
+      tech.textContent = techLabel(sp.cut);
+
+      btn.append(cv, name, tech);
+      btn.addEventListener('click', () => onPick(sp));
+      grid.appendChild(btn);
+    }
+  },
 
   /* ── Field guide ─────────────────────────────────────────────── */
 
@@ -146,6 +204,13 @@ export const ui = {
     this.show('screenOver');
   },
 };
+
+/** Ultra-short technique summary for the picker tiles. */
+function techLabel(c) {
+  const shape = { straight: 'straight', arc: 'curve', zigzag: 'zigzag', cross: 'cross-cut' }[c.pattern];
+  const angle = c.angle == null ? 'any angle' : `${c.angle}°`;
+  return `${angle} · ${shape}`;
+}
 
 function specChips(sp) {
   if (!sp.cut) return '<span class="spec">do not cut</span>';

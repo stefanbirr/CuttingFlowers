@@ -102,6 +102,8 @@ html, body {
 
 .icon-btn {
   pointer-events: auto;
+  /* Stays hard right even when the round/clock cells are hidden. */
+  margin-left: auto;
   width: 40px; height: 40px;
   border: 1px solid var(--stroke);
   border-radius: 12px;
@@ -156,6 +158,58 @@ html, body {
 }
 .hud-combo.on { opacity: 1; transform: translateX(-50%) scale(1); }
 #comboValue { font-size: 16px; }
+
+/* ── Practice brief (replaces the goal bar) ───────────────────────── */
+
+.hud-practice {
+  position: relative;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(19, 28, 22, .55);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(6px);
+}
+.practice-name { font-size: 14px; font-weight: 800; color: var(--leaf-bright); }
+.practice-hint { font-size: 11px; color: #cfe0cc; margin-top: 1px; }
+.practice-stats {
+  font-size: 11px;
+  color: var(--ink-dim);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Species picker ───────────────────────────────────────────────── */
+
+.panel-sub { margin: -6px 0 14px; font-size: 13px; color: var(--ink-dim); }
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 14px;
+}
+.pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(111, 191, 115, .08);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: transform .12s ease, background .18s ease;
+}
+.pick-item:active { transform: scale(.95); background: rgba(111, 191, 115, .2); }
+.pick-item canvas { border-radius: 8px; background: rgba(0, 0, 0, .2); }
+.pick-name { font-size: 11px; font-weight: 700; line-height: 1.2; text-align: center; }
+.pick-tech { font-size: 9px; color: var(--ink-dim); text-align: center; }
 
 .hud-basket {
   position: absolute;
