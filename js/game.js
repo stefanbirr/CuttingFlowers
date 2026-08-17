@@ -230,7 +230,7 @@ export class Game {
 
       if (f.isHazard) { this.sting(f, hit); continue; }
 
-      const dir = this.blade.dirAt(this.blade.head, 3);
+      const dir = this.blade.dirAt(this.blade.head);
       const rec = {
         flower: f, strokeId, t: hit.t, x: hit.x, y: hit.y,
         dir, speed, time: now,

@@ -22,7 +22,7 @@ export function gradeCut(cut, m) {
   const w = { ...CFG.weights };
 
   parts.timing = clamp(m.timing, 0, 1);
-  parts.point = tolScore(m.cutT - cut.point, cut.pointTol);
+  parts.point = tolScore(m.cutT - cut.point, cut.pointTol * CFG.toleranceSlack);
   parts.speed = speedScore(cut.speed, m.speed);
 
   if (cut.angle == null) {
@@ -30,7 +30,7 @@ export function gradeCut(cut, m) {
     w.angle = 0;
   } else {
     const measured = lineAngleBetween(m.bladeDir.x, m.bladeDir.y, m.stemDir.x, m.stemDir.y);
-    parts.angle = tolScore(measured - cut.angle, cut.angleTol);
+    parts.angle = tolScore(measured - cut.angle, cut.angleTol * CFG.toleranceSlack);
     parts.angleDeg = measured;
   }
 

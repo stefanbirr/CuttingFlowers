@@ -78,9 +78,10 @@ export class Flower {
 
   /** 1 while the bloom is at its best, tailing off either side. */
   get timingQuality() {
-    const lo = 0.62, hi = 0.78, l = this.life;
+    const { lo, hi, tol } = CFG.timingWindow;
+    const l = this.life;
     if (l >= lo && l <= hi) return 1;
-    return tolScore(l < lo ? lo - l : l - hi, 0.16);
+    return tolScore(l < lo ? lo - l : l - hi, tol);
   }
 
   /** Should the technique guide be visible yet? */
@@ -249,7 +250,7 @@ export class Flower {
     const cx = this.p2.x + Math.sin(this.tipAngle) * half;
     const cy = this.p2.y - Math.cos(this.tipAngle) * half;
     const r = half + 14 * s;
-    const lo = 0.62, hi = 0.78;
+    const { lo, hi } = CFG.timingWindow;
     const start = -Math.PI / 2;
     ctx.save();
     ctx.translate(cx, cy);

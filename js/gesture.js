@@ -93,8 +93,12 @@ export class Blade {
     while (this.trail.length && now - this.trail[0].t > TRAIL_MS) this.trail.shift();
   }
 
-  /** Blade direction around a stroke index, over a short window. */
-  dirAt(index, radius = 3) {
+  /** Blade direction around a stroke index, over a short window.
+      Wider than it looks necessary: a short baseline on a real touchscreen
+      turns ordinary finger jitter into a large angular error, since the
+      same few pixels of perpendicular wobble matter far more over a short
+      distance than a long one. */
+  dirAt(index, radius = 6) {
     const p = this.points;
     if (p.length < 2) return { x: 1, y: 0 };
     const a = p[clamp(index - radius, 0, p.length - 1)];

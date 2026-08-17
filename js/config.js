@@ -43,11 +43,13 @@ export const CFG = {
   crossWindow: 900,       // ms allowed between the two strokes of a cross-cut
   minSliceSpeed: 0.25,    // screen-heights/s below which the blade does not bite
 
-  /* Speed bands, in screen-heights per second */
+  /* Speed bands, in screen-heights per second. Widened from the original
+     tuning — real thumbs on real glass land off-centre in the band far
+     more often than a mouse-driven test ever does. */
   speeds: {
-    slow:   { min: 0.20, lo: 0.45, hi: 1.15, max: 1.85, label: 'slow, controlled' },
-    steady: { min: 0.75, lo: 1.35, hi: 2.60, max: 3.60, label: 'steady' },
-    fast:   { min: 1.90, lo: 3.10, hi: 6.50, max: 9.00, label: 'fast snap' },
+    slow:   { min: 0.14, lo: 0.36, hi: 1.35, max: 2.15, label: 'slow, controlled' },
+    steady: { min: 0.55, lo: 1.10, hi: 2.95, max: 4.20, label: 'steady' },
+    fast:   { min: 1.55, lo: 2.55, hi: 7.40, max: 10.40, label: 'fast snap' },
   },
 
   /* How much each part of the *technique* counts. Re-normalised when a
@@ -56,9 +58,22 @@ export const CFG = {
      closed bud is still a ruined flower. */
   weights: { point: 0.30, angle: 0.28, speed: 0.18, pattern: 0.24 },
 
-  /* quality = mean × (worstPull …1) × (timingGate …1) */
-  timingGate: 0.30,       // score kept when the moment is completely wrong
-  worstPull: 0.28,        // share of the score held hostage by the weakest criterion
+  /* quality = mean × (worstPull …1) × (timingGate …1)
+     A mistimed or one-axis-bad cut should read as "not your best," not as
+     a wipeout — the multiplicative floors below keep a merely-okay cut in
+     "Good" territory instead of crushing it into "Ragged". */
+  timingGate: 0.55,       // score kept when the moment is completely wrong
+  worstPull: 0.15,        // share of the score held hostage by the weakest criterion
+
+  /* Extra headroom on every species' angle/point tolerance, on top of the
+     numbers in species.js — a blanket buffer for real touch imprecision
+     that a synthetic mouse swipe never has to fight. */
+  toleranceSlack: 1.4,
+
+  /* The bloom-timing target window: life fraction, and how forgiving the
+     falloff either side of it is. Shared by scoring and the ring guide so
+     the picture never lies about what actually scores well. */
+  timingWindow: { lo: 0.56, hi: 0.82, tol: 0.22 },
 
   grades: [
     { min: 0.93, name: 'Immaculate', color: '#ffe9a3', shake: 9 },
