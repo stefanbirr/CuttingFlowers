@@ -24,15 +24,15 @@
 <div id="hud" class="layer hidden" aria-hidden="true">
   <div class="hud-top">
     <div class="hud-cell">
-      <span class="hud-label">Score</span>
+      <span class="hud-label" id="hudLabelScore">Score</span>
       <span class="hud-value" id="hudScore">0</span>
     </div>
     <div class="hud-cell hud-round">
-      <span class="hud-label">Round</span>
+      <span class="hud-label" id="hudLabelRound">Round</span>
       <span class="hud-value" id="hudRound">1</span>
     </div>
     <div class="hud-cell hud-right">
-      <span class="hud-label">Time</span>
+      <span class="hud-label" id="hudLabelTime">Time</span>
       <span class="hud-value" id="hudTime">45</span>
     </div>
     <button id="btnPause" class="icon-btn" aria-label="Pause">
@@ -45,7 +45,7 @@
     <span class="quota-text" id="quotaText">Goal 600</span>
   </div>
 
-  <div class="hud-combo" id="hudCombo"><span id="comboValue">x2</span> combo</div>
+  <div class="hud-combo" id="hudCombo"><span id="comboValue">x2</span> <span id="comboLabel">combo</span></div>
 
   <!-- Practice mode replaces the goal bar with the species brief -->
   <div class="hud-practice hidden" id="hudPractice">
@@ -56,7 +56,7 @@
 
   <div class="hud-basket">
     <span id="basketCount">0</span>
-    <span class="basket-sub">stems</span>
+    <span class="basket-sub" id="basketLabel">stems</span>
   </div>
 
   <div class="strikes" id="strikes" aria-label="Strikes"></div>
@@ -68,8 +68,8 @@
     <div class="logo">
       <span class="logo-bloom">Bloom</span><span class="logo-amp">&amp;</span><span class="logo-blade">Blade</span>
     </div>
-    <p class="tagline">Every flower wants a different blade.<br>Cut it right, then bind the bouquet.</p>
-    <div class="best-line">Best bouquet run: <strong id="bestScore">0</strong></div>
+    <p class="tagline" id="tagline">Every flower wants a different blade.<br>Cut it right, then bind the bouquet.</p>
+    <div class="best-line"><span id="bestLineLabel">Best bouquet run:</span> <strong id="bestScore">0</strong></div>
     <div class="btn-row">
       <button class="btn primary" id="btnPlay">Start harvest</button>
     </div>
@@ -80,51 +80,47 @@
       <button class="btn" id="btnGuide">Field guide</button>
       <button class="btn" id="btnTutorial">How to cut</button>
     </div>
-    <button class="btn ghost small" id="btnSound">Sound: on</button>
-    <p class="fineprint">Works offline &middot; add to your home screen</p>
+    <div class="btn-row">
+      <button class="btn ghost small" id="btnSound">Sound: on</button>
+      <button class="btn ghost small" id="btnLang">Deutsch</button>
+    </div>
+    <p class="fineprint" id="fineprint">Works offline &middot; add to your home screen</p>
   </div>
 </div>
 
 <!-- ── Tutorial ─────────────────────────────────────────────────────── -->
 <div id="screenTutorial" class="layer screen hidden">
   <div class="panel">
-    <h2>How to cut</h2>
-    <ol class="howto">
-      <li><b>Wait for the bloom.</b> Stems sprout, open, then wither. The ring around a flower closes as it peaks — cut on the bright ring.</li>
-      <li><b>Match the angle.</b> The badge on each stem shows the blade angle against the stem: <span class="ang">/</span> slanted 45&deg;, <span class="ang">—</span> straight across, <span class="ang">\</span> shallow 30&deg;.</li>
-      <li><b>Hit the cut point.</b> A pale band marks where the stem should be severed. Low bands mean long stems for the vase.</li>
-      <li><b>Mind the speed.</b> Dots on the badge: one = slow and careful, two = steady, three = a fast snap.</li>
-      <li><b>Some stems need a shape.</b> A curve, a saw-toothed zigzag, or two crossing strokes for woody stems.</li>
-      <li><b>Leave the nettles alone.</b> Three stings and the round is over.</li>
-    </ol>
-    <div class="btn-row"><button class="btn primary" data-close="screenTutorial">Got it</button></div>
+    <h2 id="tutorialTitle">How to cut</h2>
+    <ol class="howto" id="howtoList"></ol>
+    <div class="btn-row"><button class="btn primary" id="btnTutorialClose" data-close="screenTutorial">Got it</button></div>
   </div>
 </div>
 
 <!-- ── Field guide ──────────────────────────────────────────────────── -->
 <div id="screenGuide" class="layer screen hidden">
   <div class="panel wide">
-    <h2>Field guide</h2>
+    <h2 id="guideTitle">Field guide</h2>
     <div class="guide-list" id="guideList"></div>
-    <div class="btn-row"><button class="btn primary" data-close="screenGuide">Back</button></div>
+    <div class="btn-row"><button class="btn primary" id="btnGuideBack" data-close="screenGuide">Back</button></div>
   </div>
 </div>
 
 <!-- ── Practice: pick a species ─────────────────────────────────────── -->
 <div id="screenPractice" class="layer screen hidden">
   <div class="panel wide">
-    <h2>Practice a flower</h2>
-    <p class="panel-sub">One stem at a time, centre of the field, no clock.
+    <h2 id="practiceTitle">Practice a flower</h2>
+    <p class="panel-sub" id="practiceSubtitle">One stem at a time, centre of the field, no clock.
       The next one sprouts once you have cut the last.</p>
     <div class="pick-grid" id="pickGrid"></div>
-    <div class="btn-row"><button class="btn" data-close="screenPractice">Back</button></div>
+    <div class="btn-row"><button class="btn" id="btnPracticeBack" data-close="screenPractice">Back</button></div>
   </div>
 </div>
 
 <!-- ── Pause ────────────────────────────────────────────────────────── -->
 <div id="screenPause" class="layer screen hidden">
   <div class="panel">
-    <h2>Paused</h2>
+    <h2 id="pauseTitle">Paused</h2>
     <div class="btn-row"><button class="btn primary" id="btnResume">Resume</button></div>
     <div class="btn-row">
       <button class="btn" id="btnPauseGuide">Field guide</button>
@@ -142,7 +138,7 @@
   <div class="bouquet-panel">
     <div class="breakdown" id="bouquetBreakdown"></div>
     <div class="bouquet-total">
-      <span>Round total</span><strong id="bouquetTotal">0</strong>
+      <span id="bouquetTotalLabel">Round total</span><strong id="bouquetTotal">0</strong>
     </div>
     <div class="btn-row" id="bouquetActions"></div>
   </div>
@@ -153,7 +149,7 @@
   <div class="panel">
     <h2 id="overTitle">Run over</h2>
     <p class="over-reason" id="overReason"></p>
-    <div class="final-score"><span>Total</span><strong id="finalScore">0</strong></div>
+    <div class="final-score"><span id="finalScoreLabel">Total</span><strong id="finalScore">0</strong></div>
     <div class="final-sub" id="finalSub"></div>
     <div class="btn-row"><button class="btn primary" id="btnRetry">Harvest again</button></div>
     <div class="btn-row"><button class="btn" id="btnHome">Main menu</button></div>
@@ -161,7 +157,7 @@
 </div>
 
 <div id="rotateNote" class="layer rotate-note hidden">
-  <p>Turn upright &mdash; the flowers grow tall.</p>
+  <p id="rotateText">Turn upright &mdash; the flowers grow tall.</p>
 </div>
 
 <script type="module" src="js/main.js"></script>

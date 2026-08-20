@@ -61,31 +61,19 @@ export function gradeInfo(q) {
   return CFG.grades.find((g) => q >= g.min) || CFG.grades[CFG.grades.length - 1];
 }
 
-/** The single biggest thing the player got wrong — used for the popup hint. */
+/** The single biggest thing the player got wrong — a translatable
+    descriptor for the popup hint; i18n.weakNoteText() renders the text. */
 export function weakestPart(cut, parts) {
   const named = [
-    ['timing', parts.timing, parts.timing < 0.5 ? 'too early' : 'past its best'],
-    ['point', parts.point, 'wrong height'],
-    ['angle', parts.angle, cut.angle != null ? `${Math.round(parts.angleDeg ?? 0)}° not ${cut.angle}°` : ''],
-    ['speed', parts.speed, `needed ${CFG.speeds[cut.speed]?.label ?? ''}`],
-    ['pattern', parts.pattern, patternHint(cut.pattern)],
-  ].filter(([k]) => k !== 'angle' || cut.angle != null);
+    ['timing', parts.timing, { axis: 'timing', early: parts.timing < 0.5 }],
+    ['point', parts.point, { axis: 'point' }],
+    ['angle', parts.angle, cut.angle != null
+      ? { axis: 'angle', measured: Math.round(parts.angleDeg ?? 0), target: cut.angle } : null],
+    ['speed', parts.speed, { axis: 'speed', speedKey: cut.speed }],
+    ['pattern', parts.pattern, { axis: 'pattern', patternKey: cut.pattern }],
+  ].filter(([, , d]) => d);
 
   named.sort((a, b) => a[1] - b[1]);
-  const [key, val, note] = named[0];
-  return val > 0.72 ? null : { key, note };
-}
-
-function patternHint(p) {
-  return { arc: 'sweep a curve', zigzag: 'saw it, zigzag', cross: 'needs a second crossing stroke' }[p]
-    || 'keep the stroke straight';
-}
-
-/** Fine-grained timing label for feedback. */
-export function timingLabel(life) {
-  if (life < 0.46) return 'unripe';
-  if (life < 0.6) return 'early';
-  if (life <= 0.8) return 'in bloom';
-  if (life < 0.92) return 'wilting';
-  return 'spent';
+  const [, val, descriptor] = named[0];
+  return val > 0.72 ? null : descriptor;
 }

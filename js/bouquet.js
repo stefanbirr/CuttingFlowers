@@ -7,69 +7,76 @@ import { drawStem, drawHead } from './draw.js';
 
 /* ── Scoring ──────────────────────────────────────────────────────── */
 
+/* Rows carry a translation key + interpolation vars rather than baked
+   English text — ui.js renders them through i18n at display time, so a
+   language switch never needs this scoring pass to run again. */
 export function scoreBouquet(stems, { stings = 0 } = {}) {
   const B = CFG.bouquet;
   const rows = [];
   const n = stems.length;
 
   if (n === 0) {
-    return { rows: [{ label: 'Empty handed', note: 'nothing was cut', value: 0 }], total: 0, stars: 0 };
+    return {
+      rows: [{ labelKey: 'row.emptyLabel', noteKey: 'row.emptyNote', value: 0 }],
+      total: 0, stars: 0, nameKey: null,
+    };
   }
 
   const avgQ = stems.reduce((s, x) => s + x.quality, 0) / n;
   const craft = Math.round(avgQ * 320);
-  rows.push({ label: 'Cut craft', note: `${Math.round(avgQ * 100)}% clean stems`, value: craft });
+  rows.push({ labelKey: 'row.craft', noteKey: 'row.craftNote', noteVars: { pct: Math.round(avgQ * 100) }, value: craft });
 
   const fullRatio = n / B.idealSize;
   const fullness = Math.round(220 * (fullRatio <= 1 ? fullRatio : clamp(1 - (fullRatio - 1) * 0.35, 0.55, 1)));
-  rows.push({ label: 'Fullness', note: `${n} stem${n === 1 ? '' : 's'}`, value: fullness });
+  rows.push({ labelKey: 'row.fullness', noteKey: 'row.fullnessNote', noteN: n, value: fullness });
 
   const greens = stems.filter((s) => s.species.kind === 'green').length;
   const ratio = greens / n;
   const foliage = Math.round(160 * tolScore(ratio - B.idealGreenRatio, 0.24));
   rows.push({
-    label: 'Foliage balance',
-    note: greens === 0 ? 'no greenery at all' : `${Math.round(ratio * 100)}% greens`,
+    labelKey: 'row.foliage',
+    noteKey: greens === 0 ? 'row.foliageNone' : 'row.foliageNote',
+    noteVars: { pct: Math.round(ratio * 100) },
     value: foliage,
   });
 
   const kinds = new Set(stems.map((s) => s.species.id));
   const variety = Math.min(6, kinds.size) * B.varietyBonus;
-  rows.push({ label: 'Variety', note: `${kinds.size} species`, value: variety });
+  rows.push({ labelKey: 'row.variety', noteKey: 'row.varietyNote', noteN: kinds.size, value: variety });
 
   const lens = stems.map((s) => s.stemLen);
   const mean = lens.reduce((a, b) => a + b, 0) / n;
   const dev = Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / n) / (mean || 1);
   const harmony = Math.round(B.stemHarmonyMax * clamp(1 - dev / 0.8, 0, 1));
   rows.push({
-    label: 'Stem harmony',
-    note: dev < 0.18 ? 'evenly matched lengths' : 'uneven lengths',
+    labelKey: 'row.harmony',
+    noteKey: dev < 0.18 ? 'row.harmonyEven' : 'row.harmonyUneven',
     value: harmony,
   });
 
   const fresh = stems.reduce((s, x) => s + (x.timing ?? 0), 0) / n;
   const freshness = Math.round(160 * fresh);
-  rows.push({ label: 'Freshness', note: `${Math.round(fresh * 100)}% cut in bloom`, value: freshness });
+  rows.push({ labelKey: 'row.freshness', noteKey: 'row.freshnessNote', noteVars: { pct: Math.round(fresh * 100) }, value: freshness });
 
-  if (stings === 0) rows.push({ label: 'Unstung', note: 'no weeds touched', value: 150 });
-  else rows.push({ label: 'Stings', note: `${stings} weed${stings === 1 ? '' : 's'} cut`, value: -120 * stings });
+  if (stings === 0) rows.push({ labelKey: 'row.unstung', noteKey: 'row.unstungNote', value: 150 });
+  else rows.push({ labelKey: 'row.stings', noteKey: 'row.stingsNote', noteN: stings, value: -120 * stings });
 
   const total = rows.reduce((s, r) => s + r.value, 0);
   const stars = clamp(Math.round((total / 1150) * 5), 0, 5);
-  return { rows, total, stars, avgQ, name: bouquetName(stems, avgQ) };
+  return { rows, total, stars, avgQ, nameKey: bouquetNameKey(stems, avgQ) };
 }
 
-function bouquetName(stems, avgQ) {
+function bouquetNameKey(stems, avgQ) {
   const n = stems.length;
   const kinds = new Set(stems.map((s) => s.species.id)).size;
   const greens = stems.filter((s) => s.species.kind === 'green').length / n;
-  if (n <= 3) return 'A modest sprig';
-  if (avgQ > 0.88 && n >= 10) return 'Florist’s masterpiece';
-  if (kinds >= 5) return 'Wild cottage mix';
-  if (greens > 0.5) return 'Foliage study';
-  if (greens < 0.1) return 'All blooms, no green';
-  if (avgQ < 0.45) return 'Rustic — very rustic';
-  return 'A handsome bouquet';
+  if (n <= 3) return 'sprig';
+  if (avgQ > 0.88 && n >= 10) return 'masterpiece';
+  if (kinds >= 5) return 'cottage';
+  if (greens > 0.5) return 'foliage';
+  if (greens < 0.1) return 'allBlooms';
+  if (avgQ < 0.45) return 'rustic';
+  return 'handsome';
 }
 
 /* ── Arrangement ──────────────────────────────────────────────────── */

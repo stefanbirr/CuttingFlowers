@@ -1,7 +1,7 @@
 /* Offline shell. Cache-first for the game's own files, with a network
    fallback and a stale-while-revalidate refresh so updates land quietly. */
 
-const VERSION = 'bloom-blade-v4';
+const VERSION = 'bloom-blade-v5';
 const SHELL = [
   '.',
   'index.html',
@@ -20,6 +20,7 @@ const SHELL = [
   'js/particles.js',
   'js/audio.js',
   'js/storage.js',
+  'js/i18n.js',
   'js/ui.js',
   'js/util.js',
   'icons/icon-192.png',

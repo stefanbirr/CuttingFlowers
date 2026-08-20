@@ -36,6 +36,11 @@ export const CFG = {
   /* Practice: one chosen flower at a time, dead centre, no clock. */
   practiceRespawn: 700,   // ms of calm after a cut before the next sprouts
 
+  /* Where the "+points / grade" popup appears: a fixed height near the top
+     of the screen (fraction of view height) rather than at the cut, so it
+     reads clearly no matter how tall the stem was or where you swiped. */
+  feedbackY: 0.32,
+
   /* Gesture analysis */
   strokeMaxPoints: 220,
   strokeIdleMs: 130,      // a pause this long ends the logical stroke
@@ -47,9 +52,9 @@ export const CFG = {
      tuning — real thumbs on real glass land off-centre in the band far
      more often than a mouse-driven test ever does. */
   speeds: {
-    slow:   { min: 0.14, lo: 0.36, hi: 1.35, max: 2.15, label: 'slow, controlled' },
-    steady: { min: 0.55, lo: 1.10, hi: 2.95, max: 4.20, label: 'steady' },
-    fast:   { min: 1.55, lo: 2.55, hi: 7.40, max: 10.40, label: 'fast snap' },
+    slow:   { min: 0.14, lo: 0.36, hi: 1.35, max: 2.15 },
+    steady: { min: 0.55, lo: 1.10, hi: 2.95, max: 4.20 },
+    fast:   { min: 1.55, lo: 2.55, hi: 7.40, max: 10.40 },
   },
 
   /* How much each part of the *technique* counts. Re-normalised when a
@@ -75,12 +80,14 @@ export const CFG = {
      the picture never lies about what actually scores well. */
   timingWindow: { lo: 0.56, hi: 0.82, tol: 0.22 },
 
+  /* `key` is the translation lookup (see i18n.js grade.*); no display text
+     lives here so this file stays language-agnostic. */
   grades: [
-    { min: 0.93, name: 'Immaculate', color: '#ffe9a3', shake: 9 },
-    { min: 0.80, name: 'Clean',      color: '#a7e8a0', shake: 6 },
-    { min: 0.62, name: 'Good',       color: '#cfe0cc', shake: 4 },
-    { min: 0.40, name: 'Ragged',     color: '#e8c98a', shake: 3 },
-    { min: -1,   name: 'Butchered',  color: '#ff9d92', shake: 2 },
+    { min: 0.93, key: 'immaculate', color: '#ffe9a3', shake: 9 },
+    { min: 0.80, key: 'clean',      color: '#a7e8a0', shake: 6 },
+    { min: 0.62, key: 'good',       color: '#cfe0cc', shake: 4 },
+    { min: 0.40, key: 'ragged',     color: '#e8c98a', shake: 3 },
+    { min: -1,   key: 'butchered',  color: '#ff9d92', shake: 2 },
   ],
 
   comboStep: 0.15,        // multiplier gained per good cut

@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import { ui } from './ui.js';
 import { sound } from './audio.js';
 import { store } from './storage.js';
+import { t, getLang, setLang, otherLangName, onLangChange } from './i18n.js';
 
 const canvas = document.getElementById('stage');
 const game = new Game(canvas);
@@ -50,7 +51,7 @@ for (const btn of document.querySelectorAll('[data-close]')) {
 
 const soundBtn = document.getElementById('btnSound');
 function paintSoundBtn() {
-  soundBtn.textContent = `Sound: ${store.get('sound') ? 'on' : 'off'}`;
+  soundBtn.textContent = t('title.sound', { state: t(store.get('sound') ? 'title.soundOn' : 'title.soundOff') });
 }
 soundBtn.addEventListener('click', () => {
   const next = !store.get('sound');
@@ -58,6 +59,23 @@ soundBtn.addEventListener('click', () => {
   sound.setEnabled(next);
   paintSoundBtn();
   if (next) sound.ui();
+});
+
+/* ── Language ─────────────────────────────────────────────────────── */
+
+const langBtn = document.getElementById('btnLang');
+function paintLangBtn() { langBtn.textContent = otherLangName(); }
+langBtn.addEventListener('click', () => {
+  sound.ui();
+  setLang(getLang() === 'en' ? 'de' : 'en');
+});
+
+let installPromptActive = false;
+onLangChange(() => {
+  ui.applyStaticText();
+  paintSoundBtn();
+  paintLangBtn();
+  if (installPromptActive) paintInstallFineprint();
 });
 
 /* ── First touch unlocks audio ────────────────────────────────────── */
@@ -98,8 +116,11 @@ document.addEventListener('keydown', (e) => {
 
 /* ── Loop ─────────────────────────────────────────────────────────── */
 
+document.documentElement.lang = getLang();
+ui.applyStaticText();
 ui.setBest(store.get('best'));
 paintSoundBtn();
+paintLangBtn();
 relayout();
 
 // The rAF argument is a frame-display timestamp, which does not always track
@@ -121,19 +142,25 @@ if ('serviceWorker' in navigator) {
 
 /* Keep the browser's own install prompt available on the title screen. */
 let installEvent = null;
+function paintInstallFineprint() {
+  const p = document.querySelector('#screenTitle .fineprint');
+  if (!p) return;
+  p.textContent = t('title.installPrompt');
+  p.style.cursor = 'pointer';
+  p.style.color = '#a7e8a0';
+}
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   installEvent = e;
+  installPromptActive = true;
+  paintInstallFineprint();
   const p = document.querySelector('#screenTitle .fineprint');
-  if (!p) return;
-  p.textContent = 'Tap to install on your home screen';
-  p.style.cursor = 'pointer';
-  p.style.color = '#a7e8a0';
-  p.addEventListener('click', async () => {
+  p?.addEventListener('click', async () => {
     if (!installEvent) return;
     installEvent.prompt();
     installEvent = null;
-    p.textContent = 'Works offline · add to your home screen';
+    installPromptActive = false;
+    p.textContent = t('title.fineprint');
     p.style.color = '';
   });
 });

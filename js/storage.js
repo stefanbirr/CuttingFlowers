@@ -9,6 +9,7 @@ const DEFAULTS = {
   seenTutorial: false,
   harvested: 0,
   immaculate: 0,
+  lang: null,   // null = not chosen yet; i18n falls back to the browser's language
 };
 
 function read() {

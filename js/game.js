@@ -11,6 +11,7 @@ import { Bouquet, scoreBouquet } from './bouquet.js';
 import { sound } from './audio.js';
 import { store } from './storage.js';
 import { ui } from './ui.js';
+import { t, gradeName, weakNoteText, fmtNum } from './i18n.js';
 import { clamp, lerp, rand } from './util.js';
 
 export class Game {
@@ -210,6 +211,17 @@ export class Game {
     if (!ambient) sound.sprout();
   }
 
+  /** Where the "+points" popup lands: a fixed height near the top of the
+      screen, but still under the x you cut at so it reads as a response
+      to that specific action. Clamped off the edges for centred text. */
+  feedbackPos(x) {
+    const margin = 90 * this.view.scale;
+    return {
+      x: clamp(x, margin, this.view.w - margin),
+      y: this.view.h * CFG.feedbackY,
+    };
+  }
+
   /* ── Slicing ────────────────────────────────────────────────────── */
 
   onBladeSegment(a, b, strokeId) {
@@ -288,7 +300,8 @@ export class Game {
     this.stungCount = (this.stungCount || 0) + 1;
 
     this.fx.burst(hit.x, hit.y, ['#4b7d42', '#96b06f', '#2f4a2b'], 16, { power: 1.1 });
-    this.fx.label(hit.x, hit.y - 26, `${pts}`, '#ff9d92', { sub: 'stung!', size: 20 });
+    const fp = this.feedbackPos(hit.x);
+    this.fx.label(fp.x, fp.y, `${pts}`, '#ff9d92', { sub: t('label.stung'), size: 20 });
     this.fx.kick(14);
     sound.sting();
     if (navigator.vibrate) navigator.vibrate([26, 40, 26]);
@@ -351,9 +364,15 @@ export class Game {
     piece.grade = res.grade;
 
     const gx = piece.x, gy = piece.y;
-    const weak = q < 0.8 ? weakestPart(cut, res.parts) : null;
-    this.fx.label(gx, gy - 20 * this.view.scale, `+${pts}`, res.grade.color, {
-      sub: weak ? `${res.grade.name} · ${weak.note}` : res.grade.name,
+    // Practice keeps the full technique breakdown so you can see exactly
+    // what to fix; a real round just shows the grade so cuts stay quick
+    // to read while stems keep flying.
+    const practice = this.mode === 'practice';
+    const weak = (practice && q < 0.8) ? weakestPart(cut, res.parts) : null;
+    const grade = gradeName(res.grade);
+    const fp = this.feedbackPos(gx);
+    this.fx.label(fp.x, fp.y, `+${pts}`, res.grade.color, {
+      sub: weak ? `${grade} · ${weakNoteText(weak)}` : grade,
       size: lerp(15, 22, q),
     });
     this.fx.burst(gx, gy, [...f.palette, '#ffffff'], Math.round(5 + q * 14), { power: 0.6 + q * 0.7 });
@@ -441,7 +460,7 @@ export class Game {
           ui.setCombo(1);
           const tip = f.p2;
           this.fx.burst(tip.x, tip.y, [...f.palette, '#8a7a4b'], 7, { power: 0.4 });
-          this.fx.label(tip.x, tip.y, 'wilted', '#c8b48a', { size: 13, ttl: 750 });
+          this.fx.label(tip.x, tip.y, t('label.wilted'), '#c8b48a', { size: 13, ttl: 750 });
           sound.wither();
         }
       }
@@ -535,11 +554,10 @@ export class Game {
     this.panelShown = true;
     const result = this.lastResult;
     const actions = this.cleared
-      ? [{ label: `On to round ${this.round + 1}`, primary: true, onClick: () => this.nextRound() }]
-      : [{ label: 'See the result', primary: true, onClick: () => this.gameOver() }];
+      ? [{ label: t('bouquet.nextRound', { round: this.round + 1 }), primary: true, onClick: () => this.nextRound() }]
+      : [{ label: t('bouquet.seeResult'), primary: true, onClick: () => this.gameOver() }];
     ui.showBouquet({
       round: this.round,
-      title: result.name || 'bouquet',
       result,
       roundPoints: this.roundPoints,
       actions,
@@ -562,12 +580,16 @@ export class Game {
     store.recordRun(this.total, this.round);
 
     const reason = this.endReason === 'stung'
-      ? `Three stings in round ${this.round}. The nettles win this time.`
-      : `Round ${this.round} needed ${this.quota.toLocaleString()} points — you bound ${(this.roundPoints + (this.lastResult?.total || 0)).toLocaleString()}.`;
+      ? t('over.reasonStung', { round: this.round })
+      : t('over.reasonQuota', {
+          round: this.round,
+          quota: fmtNum(this.quota),
+          total: fmtNum(this.roundPoints + (this.lastResult?.total || 0)),
+        });
 
     sound.fail();
     ui.showOver({
-      title: newBest ? 'A record harvest' : 'Run over',
+      title: newBest ? t('over.record') : t('over.runOver'),
       reason, score: this.total, round: this.round, best: Math.max(best, this.total), newBest,
     });
   }
