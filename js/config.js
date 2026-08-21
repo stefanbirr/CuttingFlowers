@@ -28,9 +28,17 @@ export const CFG = {
   clearanceEase: 0.06,
   clearanceFloor: 0.55,
 
+  /* Every cuttable stem is worth the same base score — technique decides
+     the rest, not which species you happened to draw. A "clean" cut lands
+     right around cutBase; a butchered one drops toward its floor; a
+     flawless one clears it. */
+  cutBase: 100,
+  /* Flat cost of stinging any weed, regardless of which one. */
+  stingPenalty: 100,
+
   /* Quota to clear a round: grows super-linearly. Round 1 wants roughly a
      dozen decent stems; by round 5 sloppy cutting will not keep up. */
-  quotaBase: 1250,
+  quotaBase: 950,
   quotaGrowth: 1.26,
 
   /* Practice: one chosen flower at a time, dead centre, no clock. */
@@ -94,14 +102,6 @@ export const CFG = {
   comboMax: 3.0,
   comboKeepAbove: 0.62,   // quality needed to build the combo
   comboBreakBelow: 0.40,  // quality that snaps it
-
-  /* Bouquet composition targets */
-  bouquet: {
-    idealGreenRatio: 0.32,
-    idealSize: 12,
-    varietyBonus: 55,
-    stemHarmonyMax: 180,
-  },
 };
 
 /* Life-cycle phase boundaries, as fractions of a stem's lifespan. */

@@ -222,15 +222,6 @@ export class Game {
     };
   }
 
-  /** What the round would score if it ended right now: raw cut points plus
-      the bouquet composition bonus the harvest-so-far would earn. The quota
-      bar tracks this (not just roundPoints) so it actually reads full once
-      the round is on pace to clear — the composition bonus is what usually
-      closes the last stretch to the goal. */
-  liveQuotaProgress() {
-    return this.roundPoints + scoreBouquet(this.harvest, { stings: this.stungCount || 0 }).total;
-  }
-
   /* ── Slicing ────────────────────────────────────────────────────── */
 
   onBladeSegment(a, b, strokeId) {
@@ -304,7 +295,7 @@ export class Game {
     this.strikes++;
     this.streak = 0;
     this.combo = 1;
-    const pts = f.species.value;
+    const pts = -CFG.stingPenalty;
     this.roundPoints = Math.max(0, this.roundPoints + pts);
     this.stungCount = (this.stungCount || 0) + 1;
 
@@ -317,7 +308,7 @@ export class Game {
 
     ui.setStrikes(this.strikes, CFG.strikesAllowed);
     ui.setCombo(1);
-    ui.setQuota(this.liveQuotaProgress(), this.quota);
+    ui.setQuota(this.roundPoints, this.quota);
 
     if (this.strikes >= CFG.strikesAllowed) this.endRound('stung');
   }
@@ -364,7 +355,7 @@ export class Game {
       this.combo = 1;
     }
 
-    const pts = Math.round(f.species.value * (0.25 + q * 0.95) * this.combo);
+    const pts = Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
     this.roundPoints += pts;
     this.cutCount++;
 
@@ -407,7 +398,7 @@ export class Game {
     store.bump('harvested');
     ui.setBasket(this.harvest.length);
     ui.setCombo(this.combo);
-    ui.setQuota(this.liveQuotaProgress(), this.quota);
+    ui.setQuota(this.roundPoints, this.quota);
     ui.setScore(this.total + this.roundPoints);
 
     if (this.mode === 'practice') {
@@ -548,13 +539,10 @@ export class Game {
     this.bouquet = new Bouquet(this.view, this.harvest);
     sound.bind();
 
-    const result = scoreBouquet(this.harvest, { stings: this.stungCount || 0 });
-    this.lastResult = result;
-    const roundTotal = this.roundPoints + result.total;
-    this.total += roundTotal;
+    this.lastResult = scoreBouquet(this.harvest, { stings: this.stungCount || 0 });
+    this.total += this.roundPoints;
 
-    const cleared = roundTotal >= this.quota && this.endReason !== 'stung';
-    this.cleared = cleared;
+    this.cleared = this.roundPoints >= this.quota && this.endReason !== 'stung';
     this.panelShown = false;
   }
 
@@ -593,7 +581,7 @@ export class Game {
       : t('over.reasonQuota', {
           round: this.round,
           quota: fmtNum(this.quota),
-          total: fmtNum(this.roundPoints + (this.lastResult?.total || 0)),
+          total: fmtNum(this.roundPoints),
         });
 
     sound.fail();

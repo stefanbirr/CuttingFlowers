@@ -67,7 +67,6 @@ const STR = {
       title: 'Field guide',
       back: 'Back',
       doNotCut: 'do not cut',
-      pts: '{v} pts',
     },
     practice: {
       title: 'Practice a flower',
@@ -84,8 +83,6 @@ const STR = {
     },
     bouquet: {
       roundTitle: 'Round {round} — {name}',
-      cutsThisRound: 'Cuts this round',
-      pointsBanked: 'points banked in the field',
       total: 'Round total',
       nextRound: 'On to round {round}',
       seeResult: 'See the result',
@@ -183,7 +180,6 @@ const STR = {
       title: 'Feldführer',
       back: 'Zurück',
       doNotCut: 'nicht schneiden',
-      pts: '{v} Pkt.',
     },
     practice: {
       title: 'Blume üben',
@@ -200,8 +196,6 @@ const STR = {
     },
     bouquet: {
       roundTitle: 'Runde {round} — {name}',
-      cutsThisRound: 'Schnitte dieser Runde',
-      pointsBanked: 'im Feld gesammelte Punkte',
       total: 'Rundensumme',
       nextRound: 'Weiter zu Runde {round}',
       seeResult: 'Ergebnis ansehen',

@@ -226,14 +226,9 @@ export const ui = {
     this.el.bouquetStars.innerHTML = [0, 1, 2, 3, 4].
       map((i) => `<span class="${i < result.stars ? '' : 'off'}">★</span>`).join('');
 
-    // The synthetic first row lives directly under bouquet.*; every row
-    // scoreBouquet() produces already carries its own 'row.' prefix — both
-    // resolve the same way, so one code path handles them all.
-    const rows = [
-      { labelKey: 'cutsThisRound', noteKey: 'pointsBanked', value: roundPoints },
-      ...result.rows,
-    ];
-    this.el.bouquetBreakdown.innerHTML = rows.map((r, i) => {
+    // Purely descriptive — every point already came from the cuts
+    // themselves (see bouquet.js), so these rows carry no value badge.
+    this.el.bouquetBreakdown.innerHTML = result.rows.map((r, i) => {
       const label = t(`bouquet.${r.labelKey}`);
       const note = r.noteN != null
         ? plural(`bouquet.${r.noteKey}`, r.noteN)
@@ -242,11 +237,10 @@ export const ui = {
       <div class="bd-row" style="animation-delay:${i * 55}ms">
         <span class="bd-label">${label}</span>
         <span class="bd-note">${note}</span>
-        <span class="bd-val ${r.value < 0 ? 'neg' : ''}">${r.value < 0 ? '' : '+'}${fmtNum(r.value)}</span>
       </div>`;
     }).join('');
 
-    this.el.bouquetTotal.textContent = fmtNum(roundPoints + result.total);
+    this.el.bouquetTotal.textContent = fmtNum(roundPoints);
     this.el.bouquetActions.innerHTML = '';
     for (const a of actions) {
       const b = document.createElement('button');
@@ -283,7 +277,6 @@ function specChips(sp) {
     pointBandLabel(c.point),
     speedLabelShort(c.speed),
     patternLabelLong(c.pattern),
-    t('guide.pts', { v: sp.value > 0 ? `+${sp.value}` : sp.value }),
   ].map((s) => `<span class="spec">${s}</span>`).join('');
 }
 
