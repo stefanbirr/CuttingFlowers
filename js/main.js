@@ -135,6 +135,17 @@ requestAnimationFrame(loop);
 /* ── Service worker ───────────────────────────────────────────────── */
 
 if ('serviceWorker' in navigator) {
+  // If this tab was already controlled by an older worker, an update means
+  // its cached JS modules are stale (only navigations refetch over the
+  // network; module scripts don't). Reload once so the new code actually
+  // runs instead of silently keeping the old version alive in this tab.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    window.location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is a bonus */ });
   });
