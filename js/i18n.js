@@ -245,7 +245,7 @@ const STR = {
     },
     rotate: 'Hochkant halten — die Blumen wachsen in die Höhe.',
     grade: {
-      immaculate: 'Makellos', clean: 'Sauber', good: 'Gut', ragged: 'Zerrupft', butchered: 'Verstümmelt',
+      immaculate: 'Makellos', clean: 'Sauber', good: 'Gut', ragged: 'Zerrupft', butchered: 'Verschnitten',
     },
     note: {
       timingEarly: 'zu früh', timingLate: 'überreif', point: 'falsche Höhe',

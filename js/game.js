@@ -222,6 +222,15 @@ export class Game {
     };
   }
 
+  /** What the round would score if it ended right now: raw cut points plus
+      the bouquet composition bonus the harvest-so-far would earn. The quota
+      bar tracks this (not just roundPoints) so it actually reads full once
+      the round is on pace to clear — the composition bonus is what usually
+      closes the last stretch to the goal. */
+  liveQuotaProgress() {
+    return this.roundPoints + scoreBouquet(this.harvest, { stings: this.stungCount || 0 }).total;
+  }
+
   /* ── Slicing ────────────────────────────────────────────────────── */
 
   onBladeSegment(a, b, strokeId) {
@@ -308,7 +317,7 @@ export class Game {
 
     ui.setStrikes(this.strikes, CFG.strikesAllowed);
     ui.setCombo(1);
-    ui.setQuota(this.roundPoints, this.quota);
+    ui.setQuota(this.liveQuotaProgress(), this.quota);
 
     if (this.strikes >= CFG.strikesAllowed) this.endRound('stung');
   }
@@ -398,7 +407,7 @@ export class Game {
     store.bump('harvested');
     ui.setBasket(this.harvest.length);
     ui.setCombo(this.combo);
-    ui.setQuota(this.roundPoints, this.quota);
+    ui.setQuota(this.liveQuotaProgress(), this.quota);
     ui.setScore(this.total + this.roundPoints);
 
     if (this.mode === 'practice') {
