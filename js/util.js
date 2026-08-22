@@ -87,15 +87,47 @@ export function hash01(n) {
   return x - Math.floor(x);
 }
 
-export function shade(hex, amt) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = clamp(((n >> 16) & 255) + amt, 0, 255);
-  const g = clamp(((n >> 8) & 255) + amt, 0, 255);
-  const b = clamp((n & 255) + amt, 0, 255);
-  return `rgb(${r|0},${g|0},${b|0})`;
+/* ── Colour ───────────────────────────────────────────────────────── */
+
+/* Each helper accepts '#rgb', '#rrggbb', 'rgb(…)' or 'rgba(…)' and returns
+   a css string, so results can be fed back through them without anyone
+   having to track which format a colour is currently in. */
+
+function parseColor(c) {
+  if (typeof c !== 'string') return { r: 0, g: 0, b: 0, a: 1 };
+  if (c[0] === '#') {
+    let hex = c.slice(1);
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    const n = parseInt(hex, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 };
+  }
+  const m = c.match(/-?[\d.]+/g);
+  if (!m || m.length < 3) return { r: 0, g: 0, b: 0, a: 1 };
+  return { r: +m[0], g: +m[1], b: +m[2], a: m[3] === undefined ? 1 : +m[3] };
 }
 
-export function withAlpha(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+const css = (r, g, b, a = 1) => (a >= 1
+  ? `rgb(${r | 0},${g | 0},${b | 0})`
+  : `rgba(${r | 0},${g | 0},${b | 0},${a})`);
+
+export function shade(c, amt) {
+  const { r, g, b, a } = parseColor(c);
+  return css(clamp(r + amt, 0, 255), clamp(g + amt, 0, 255), clamp(b + amt, 0, 255), a);
+}
+
+export function withAlpha(c, a) {
+  const { r, g, b } = parseColor(c);
+  return `rgba(${r | 0},${g | 0},${b | 0},${a})`;
+}
+
+export function mix(a, b, t) {
+  const pa = parseColor(a), pb = parseColor(b);
+  return css(lerp(pa.r, pb.r, t), lerp(pa.g, pb.g, t), lerp(pa.b, pb.b, t), lerp(pa.a, pb.a, t));
+}
+
+/** Slide a colour toward its own grey. 0 = untouched, 1 = fully greyscale. */
+export function desaturate(c, amount) {
+  const { r, g, b, a } = parseColor(c);
+  const y = 0.299 * r + 0.587 * g + 0.114 * b;
+  return css(lerp(r, y, amount), lerp(g, y, amount), lerp(b, y, amount), a);
 }

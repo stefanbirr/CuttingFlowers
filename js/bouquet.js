@@ -166,6 +166,9 @@ export class Bouquet {
       drawHead(ctx, s.species.head, {
         open: Math.max(0.85, s.open ?? 1), wilt: (s.wilt ?? 0) * 0.5,
         scale: hs, seed: it.seed, palette: s.palette,
+        // Blooms are packed tight here — a halo each would just pile shade
+        // onto the neighbours behind them.
+        halo: false,
       });
       ctx.restore();
     }

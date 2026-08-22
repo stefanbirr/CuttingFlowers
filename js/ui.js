@@ -327,13 +327,17 @@ function drawSpecimen(ctx, sp, dpr, W, H) {
     const f = i / 10;
     pts.push({ x: W / 2 + Math.sin(f * 1.6) * 3, y: baseY + (topY - baseY) * f });
   }
-  drawStem(ctx, pts, Math.min(5, sp.stem.width * 0.6), sp.stem.color, { taper: 0.7, seed: 3 });
+  // No rim or halo on the specimens: these sit on a flat dark panel that
+  // already separates them, and the shading only muddies them at this size.
+  drawStem(ctx, pts, Math.min(5, sp.stem.width * 0.6), sp.stem.color,
+    { taper: 0.7, seed: 3, rim: false });
   ctx.save();
   ctx.translate(pts[10].x, pts[10].y);
   const scale = Math.min(0.72, 26 / sp.head.size);
   drawHead(ctx, sp.head, {
     open: 1, wilt: 0, scale, seed: 1.3,
     palette: sp.head.colors,
+    halo: false,
   });
   ctx.restore();
 }

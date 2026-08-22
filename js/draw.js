@@ -11,7 +11,7 @@ import { TAU, hash01, shade, withAlpha, clamp, lerp } from './util.js';
 
 export function drawStem(ctx, pts, width, color, opts = {}) {
   if (pts.length < 2) return;
-  const { taper = 0.55, glow = 0, thorns = false, seed = 0 } = opts;
+  const { taper = 0.55, glow = 0, thorns = false, seed = 0, rim = true } = opts;
 
   if (glow > 0) {
     ctx.save();
@@ -23,9 +23,18 @@ export function drawStem(ctx, pts, width, color, opts = {}) {
     ctx.restore();
   }
 
-  // Body, drawn in segments so it can taper toward the top.
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  // A dark rim under the body. A green stem stands on a green meadow, so
+  // without this it dissolves into the field on the brighter moods.
+  if (rim) {
+    ctx.strokeStyle = 'rgba(10,20,12,.32)';
+    ctx.lineWidth = width + 2.4;
+    strokePath(ctx, pts);
+  }
+
+  // Body, drawn in segments so it can taper toward the top.
   for (let i = 1; i < pts.length; i++) {
     const t = i / (pts.length - 1);
     ctx.beginPath();
@@ -36,16 +45,10 @@ export function drawStem(ctx, pts, width, color, opts = {}) {
     ctx.stroke();
   }
 
-  // A lit edge down one side gives the stem some roundness.
-  ctx.beginPath();
-  ctx.lineWidth = Math.max(1, width * 0.26);
-  ctx.strokeStyle = withAlpha('#ffffff', 0.16);
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    const o = width * 0.22;
-    if (i === 0) ctx.moveTo(p.x - o, p.y); else ctx.lineTo(p.x - o, p.y);
-  }
-  ctx.stroke();
+  // Lit and shaded edges tracked along the stem's own normal, so the
+  // roundness survives a stem that leans or curves.
+  stemEdge(ctx, pts, width, taper, -0.26, withAlpha('#ffffff', 0.22), 0.26);
+  stemEdge(ctx, pts, width, taper, 0.30, 'rgba(0,0,0,.16)', 0.20);
 
   if (thorns) {
     ctx.fillStyle = shade(color, -34);
@@ -73,6 +76,24 @@ function strokePath(ctx, pts) {
   ctx.stroke();
 }
 
+/** A line running parallel to the stem, `offset` half-widths to one side. */
+function stemEdge(ctx, pts, width, taper, offset, style, widthMul) {
+  ctx.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const here = width * lerp(1, taper, i / (pts.length - 1));
+    const x = pts[i].x + (-dy / len) * here * offset;
+    const y = pts[i].y + (dx / len) * here * offset;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineWidth = Math.max(0.8, width * widthMul);
+  ctx.strokeStyle = style;
+  ctx.stroke();
+}
+
 /** Leaves hung off the stem at fractions along its length. */
 export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
   if (!count) return;
@@ -83,18 +104,33 @@ export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
     const side = hash01(seed + i * 7.3) > 0.5 ? 1 : -1;
     const stemAng = Math.atan2(p.y - q.y, p.x - q.x);
     const len = scale * (16 + hash01(seed + i) * 8);
+    const droop = 0.26 + hash01(seed + i * 2.1) * 0.2;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(stemAng + side * (0.7 + hash01(seed + i * 3) * 0.4));
-    ctx.fillStyle = color;
+
+    // Blade: a leaf lifted at the base and dipping toward its tip.
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(len * 0.5, -len * 0.3, len, 0);
-    ctx.quadraticCurveTo(len * 0.5, len * 0.3, 0, 0);
+    ctx.quadraticCurveTo(len * 0.45, -len * droop, len, len * 0.06);
+    ctx.quadraticCurveTo(len * 0.5, len * droop * 0.85, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, shade(color, -20));
+    g.addColorStop(0.6, color);
+    g.addColorStop(1, shade(color, 12));
+    ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = withAlpha('#000000', 0.12);
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke();
+    ctx.strokeStyle = withAlpha('#0a140c', 0.28);
+    ctx.lineWidth = Math.max(0.6, scale * 0.5);
+    ctx.stroke();
+
+    // Midrib, following the same dip as the blade.
+    ctx.strokeStyle = withAlpha('#ffffff', 0.16);
+    ctx.lineWidth = Math.max(0.6, scale * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.5, len * droop * 0.12, len * 0.94, len * 0.05);
+    ctx.stroke();
     ctx.restore();
   }
 }
@@ -102,11 +138,50 @@ export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
 /* ── Heads ────────────────────────────────────────────────────────── */
 
 /**
- * @param {object} o  { open: 0..1 bloom, wilt: 0..1, scale, seed, palette }
+ * @param {object} o  { open: 0..1 bloom, wilt: 0..1, scale, seed, palette,
+ *                      halo: draw the separation pool behind the head }
  */
 export function drawHead(ctx, head, o) {
   const fn = HEADS[head.type];
-  if (fn) fn(ctx, head, o);
+  if (!fn) return;
+  if (o.halo !== false) headHalo(ctx, head, o);
+  fn(ctx, head, o);
+}
+
+/* Roughly where each head type's mass sits in local space, in fractions of
+   its drawn size — used to place the halo behind it. */
+const HEAD_MASS = {
+  cup: { y: -0.50, r: 0.78 },
+  rosette: { y: -0.55, r: 0.95 },
+  disc: { y: -0.85, r: 1.05 },
+  spike: { y: -0.50, r: 0.55 },
+  pom: { y: -0.55, r: 0.80 },
+  orchid: { y: -0.90, r: 1.00 },
+  frond: { y: -0.60, r: 0.80 },
+  sprig: { y: -0.65, r: 0.75 },
+  plume: { y: -0.55, r: 0.70 },
+  nettle: { y: -0.60, r: 0.85 },
+  bramble: { y: -0.60, r: 0.80 },
+};
+
+/* A soft pool of shade behind the bloom. The sky cycles from a pale noon
+   blue to a peach dawn to near-black night, so a petal colour that reads
+   cleanly against one mood can sink into another — this gives every head
+   its own backing to sit on, whatever is behind it. */
+function headHalo(ctx, head, o) {
+  const s = o.scale * head.size;
+  const m = HEAD_MASS[head.type] || { y: -0.55, r: 0.9 };
+  const r = s * m.r * lerp(0.7, 1, o.open);
+  if (r <= 0.5) return;
+  const cy = s * m.y;
+  const g = ctx.createRadialGradient(0, cy, r * 0.1, 0, cy, r);
+  g.addColorStop(0, 'rgba(10,16,12,.42)');
+  g.addColorStop(0.5, 'rgba(10,16,12,.26)');
+  g.addColorStop(1, 'rgba(10,16,12,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, cy, r, 0, TAU);
+  ctx.fill();
 }
 
 function petalPath(ctx, len, wid, curl = 0.35) {
@@ -115,6 +190,22 @@ function petalPath(ctx, len, wid, curl = 0.35) {
   ctx.bezierCurveTo(wid, -len * curl, wid * 0.8, -len * 0.85, 0, -len);
   ctx.bezierCurveTo(-wid * 0.8, -len * 0.85, -wid, -len * curl, 0, 0);
   ctx.closePath();
+}
+
+/* A petal with some volume in it: shaded where it meets the centre,
+   brightest near the tip, and outlined so neighbouring petals stay
+   distinct instead of merging into one flat blob of colour. */
+function fillPetal(ctx, len, wid, curl, color, edgeWidth = 0) {
+  petalPath(ctx, len, wid, curl);
+  const g = ctx.createLinearGradient(0, 0, 0, -len);
+  g.addColorStop(0, shade(color, -30));
+  g.addColorStop(0.5, color);
+  g.addColorStop(1, shade(color, 20));
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(shade(color, -70), 0.4);
+  ctx.lineWidth = edgeWidth || Math.max(0.5, len * 0.035);
+  ctx.stroke();
 }
 
 const HEADS = {
@@ -130,14 +221,16 @@ const HEADS = {
       const depth = 1 - Math.abs(f) * 0.35;
       ctx.save();
       ctx.rotate(ang);
-      ctx.fillStyle = i % 2 ? p[1] : p[0];
-      petalPath(ctx, s * depth, s * 0.34, 0.5);
-      ctx.fill();
+      fillPetal(ctx, s * depth, s * 0.34, 0.5, i % 2 ? p[1] : p[0]);
       ctx.restore();
     }
+    // The inner petal, catching a little light down the throat of the cup.
     ctx.save();
     ctx.fillStyle = withAlpha(p[2] || p[1], 0.55);
     petalPath(ctx, s * 0.62, s * 0.2, 0.5);
+    ctx.fill();
+    ctx.fillStyle = withAlpha('#ffffff', 0.18);
+    petalPath(ctx, s * 0.42, s * 0.1, 0.5);
     ctx.fill();
     ctx.restore();
   },
@@ -160,15 +253,19 @@ const HEADS = {
         ctx.rotate(a);
         ctx.translate(0, -rad * 0.35);
         ctx.rotate(droop * 0.8);
-        ctx.fillStyle = p[Math.min(p.length - 1, 2 - r)];
-        petalPath(ctx, rad * (1 + droop * 0.3), rad * 0.62, 0.55);
-        ctx.fill();
+        // Outer rings sit in the shade of the ones above them.
+        const petal = shade(p[Math.min(p.length - 1, 2 - r)], -8 * r);
+        fillPetal(ctx, rad * (1 + droop * 0.3), rad * 0.62, 0.55, petal);
         ctx.restore();
       }
     }
     ctx.fillStyle = withAlpha(p[0], 0.9);
     ctx.beginPath();
     ctx.arc(0, 0, s * 0.16 * o.open, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = withAlpha('#000000', 0.22);
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.09 * o.open, 0, TAU);
     ctx.fill();
   },
 
@@ -186,24 +283,31 @@ const HEADS = {
       ctx.rotate(a);
       ctx.translate(0, -s * 0.28);
       ctx.rotate(droop);
-      ctx.fillStyle = i % 3 === 0 ? (p[1] || p[0]) : p[0];
-      petalPath(ctx, rayLen * (1 - o.wilt * 0.25), s * 0.16, 0.3);
-      ctx.fill();
+      fillPetal(ctx, rayLen * (1 - o.wilt * 0.25), s * 0.16, 0.3,
+        i % 3 === 0 ? (p[1] || p[0]) : p[0]);
       ctx.restore();
     }
     const cr = s * 0.32;
     const g = ctx.createRadialGradient(-cr * 0.3, -cr * 0.3, cr * 0.1, 0, 0, cr);
-    g.addColorStop(0, shade(head.centre, 40));
-    g.addColorStop(1, head.centre);
+    g.addColorStop(0, shade(head.centre, 46));
+    g.addColorStop(0.72, head.centre);
+    g.addColorStop(1, shade(head.centre, -26));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(0, 0, cr, 0, TAU); ctx.fill();
-    ctx.fillStyle = withAlpha('#000000', 0.25);
-    for (let i = 0; i < 14; i++) {
-      const a = i * 2.399, r = cr * 0.78 * Math.sqrt(i / 14);
+
+    // Seeds on a sunflower spiral — the same 137.5° step a real head uses.
+    const seeds = 26;
+    for (let i = 0; i < seeds; i++) {
+      const a = i * 2.399, r = cr * 0.8 * Math.sqrt(i / seeds);
+      const sr = cr * 0.085 * (1 - r / (cr * 1.6));
+      ctx.fillStyle = withAlpha('#000000', 0.16 + 0.14 * (r / cr));
       ctx.beginPath();
-      ctx.arc(Math.cos(a) * r, Math.sin(a) * r, cr * 0.09, 0, TAU);
+      ctx.arc(Math.cos(a) * r, Math.sin(a) * r, sr, 0, TAU);
       ctx.fill();
     }
+    ctx.strokeStyle = withAlpha('#000000', 0.22);
+    ctx.lineWidth = Math.max(0.6, cr * 0.07);
+    ctx.beginPath(); ctx.arc(0, 0, cr, 0, TAU); ctx.stroke();
   },
 
   /* Lavender: a tapering column of buds. */
@@ -212,20 +316,28 @@ const HEADS = {
     const p = o.palette;
     const n = head.beads;
     const grown = Math.max(1, Math.round(n * lerp(0.35, 1, o.open)));
+
+    // Stalk first, so the buds sit in front of it rather than on it.
+    ctx.strokeStyle = withAlpha(p[2] || p[1], 0.55);
+    ctx.lineWidth = s * 0.05;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -s * (grown / n)); ctx.stroke();
+
     for (let i = 0; i < grown; i++) {
       const t = i / n;
       const y = -s * t;
       const w = s * 0.16 * (1 - t * 0.65);
       for (const side of [-1, 1]) {
+        const tilt = side * 0.4 + o.wilt * 0.4;
         ctx.fillStyle = i % 2 ? p[1] : p[0];
         ctx.beginPath();
-        ctx.ellipse(side * w * 0.9, y, w, w * 1.35, side * 0.4 + o.wilt * 0.4, 0, TAU);
+        ctx.ellipse(side * w * 0.9, y, w, w * 1.35, tilt, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = withAlpha('#ffffff', 0.2);
+        ctx.beginPath();
+        ctx.ellipse(side * w * 0.9 - w * 0.22, y - w * 0.34, w * 0.4, w * 0.52, tilt, 0, TAU);
         ctx.fill();
       }
     }
-    ctx.strokeStyle = withAlpha(p[2] || p[1], 0.5);
-    ctx.lineWidth = s * 0.05;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -s * (grown / n)); ctx.stroke();
   },
 
   /* Hydrangea: a ball of four-petal florets. */
@@ -242,13 +354,19 @@ const HEADS = {
       ctx.save();
       ctx.translate(fx, fy);
       ctx.rotate(a);
-      ctx.fillStyle = p[i % p.length];
+      // Florets deeper in the ball sit further into shadow.
+      const depth = 1 - 0.3 * (r / (rad || 1));
+      const petal = shade(p[i % p.length], -34 * (1 - depth));
       for (let k = 0; k < 4; k++) {
         ctx.save();
         ctx.rotate((k / 4) * TAU);
         ctx.beginPath();
         ctx.ellipse(0, -fs * 0.7, fs * 0.5, fs * 0.75, 0, 0, TAU);
+        ctx.fillStyle = petal;
         ctx.fill();
+        ctx.strokeStyle = withAlpha(shade(petal, -60), 0.35);
+        ctx.lineWidth = Math.max(0.4, fs * 0.08);
+        ctx.stroke();
         ctx.restore();
       }
       ctx.fillStyle = withAlpha('#ffffff', 0.6);
@@ -272,16 +390,25 @@ const HEADS = {
       for (let i = 0; i < 5; i++) {
         ctx.save();
         ctx.rotate((i / 5) * TAU + 0.4);
-        ctx.fillStyle = i < 3 ? p[0] : p[1];
+        const petal = i < 3 ? p[0] : p[1];
+        const g = ctx.createLinearGradient(0, 0, 0, -bs * 0.86);
+        g.addColorStop(0, shade(petal, -26));
+        g.addColorStop(1, shade(petal, 16));
+        ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(0, -bs * 0.42, bs * 0.24, bs * 0.44, 0, 0, TAU);
         ctx.fill();
+        ctx.strokeStyle = withAlpha(shade(petal, -70), 0.34);
+        ctx.lineWidth = Math.max(0.4, bs * 0.03);
+        ctx.stroke();
         ctx.restore();
       }
       ctx.fillStyle = p[2];
       ctx.beginPath(); ctx.ellipse(0, 0, bs * 0.2, bs * 0.24, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = head.throat;
       ctx.beginPath(); ctx.arc(0, 0, bs * 0.1, 0, TAU); ctx.fill();
+      ctx.fillStyle = withAlpha('#000000', 0.3);
+      ctx.beginPath(); ctx.arc(0, -bs * 0.02, bs * 0.045, 0, TAU); ctx.fill();
       ctx.restore();
     }
   },
@@ -335,9 +462,16 @@ const HEADS = {
       ctx.save();
       ctx.translate(x + side * r * 0.85, y);
       ctx.rotate(side * 0.4 + o.wilt * 0.3);
-      ctx.fillStyle = i % 3 === 0 ? p[1] : p[0];
+      const coin = i % 3 === 0 ? p[1] : p[0];
+      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r);
+      g.addColorStop(0, shade(coin, 26));
+      g.addColorStop(1, shade(coin, -14));
+      ctx.fillStyle = g;
       ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.85, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = withAlpha('#ffffff', 0.25);
+      ctx.strokeStyle = withAlpha(shade(coin, -60), 0.4);
+      ctx.lineWidth = Math.max(0.5, r * 0.1);
+      ctx.stroke();
+      ctx.strokeStyle = withAlpha('#ffffff', 0.28);
       ctx.lineWidth = 0.8;
       ctx.beginPath(); ctx.moveTo(-r * 0.7, 0); ctx.lineTo(r * 0.7, 0); ctx.stroke();
       ctx.restore();

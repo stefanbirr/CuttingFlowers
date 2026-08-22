@@ -4,7 +4,7 @@
 import { CFG, PHASE } from './config.js';
 import {
   clamp, lerp, invLerp, smoothstep, rand, TAU, qPoint, qTangent,
-  segIntersect, tolScore, withAlpha, shade, hash01,
+  segIntersect, tolScore, withAlpha, shade, mix, hash01,
 } from './util.js';
 import { drawStem, drawLeaves, drawHead, pickPalette } from './draw.js';
 
@@ -369,14 +369,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
-}
-
-function mix(a, b, t) {
-  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-  const r = lerp((pa >> 16) & 255, (pb >> 16) & 255, t);
-  const g = lerp((pa >> 8) & 255, (pb >> 8) & 255, t);
-  const bl = lerp(pa & 255, pb & 255, t);
-  return `rgb(${r|0},${g|0},${bl|0})`;
 }
 
 /* ── The harvested piece ──────────────────────────────────────────── */
