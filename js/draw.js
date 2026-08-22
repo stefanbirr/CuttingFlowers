@@ -208,12 +208,12 @@ export function drawHead(ctx, head, o) {
    the sun sits low and behind the meadow, and catching that on the petals
    is what sells the hour — without it every mood lights the same way. */
 function headRim(ctx, head, o, L) {
-  const s = o.scale * head.size;
-  const m = HEAD_MASS[head.type] || { y: -0.55, r: 0.9 };
-  const r = s * m.r * lerp(0.7, 1, o.open);
+  const { cy, r } = headMass(head, o);
   if (r <= 1) return;
-  const cy = s * m.y;
-  const strength = LIGHT.rim * (1 - o.wilt * 0.5);
+  // Sized off the same mass as the halo, so light and shade agree about how
+  // big the bloom currently is.
+  const strength = LIGHT.rim * (1 - o.wilt * 0.5) * o.open;
+  if (strength <= 0.02) return;
   // Pooled toward the sun and faded radially rather than clipped to the
   // bloom's outline: a hard clip leaves a visible disc edge printed on the
   // sky, and the soft spill reads as haze around a backlit flower anyway.
@@ -248,15 +248,33 @@ const HEAD_MASS = {
    blue to a peach dawn to near-black night, so a petal colour that reads
    cleanly against one mood can sink into another — this gives every head
    its own backing to sit on, whatever is behind it. */
-function headHalo(ctx, head, o) {
+/* Where the bloom's mass sits, and how far it reaches right now.
+
+   A head grows in two stages: the bud swells first (the caller's `scale`),
+   and only then do the petals open (`open`). Sizing off the first alone
+   leaves the halo and the rim built for a full bloom while the bud is
+   still shut — a pool of shade wider than the thing casting it, and for a
+   rosette, which draws nothing at all until it opens, a pool of shade
+   behind bare sky. Both stages have to count, and the floor is deliberately
+   low: undershooting a bud is invisible, overshooting it is not. */
+function headMass(head, o) {
   const s = o.scale * head.size;
   const m = HEAD_MASS[head.type] || { y: -0.55, r: 0.9 };
-  const r = s * m.r * lerp(0.7, 1, o.open);
-  if (r <= 0.5) return;
-  const cy = s * m.y;
+  return { cy: s * m.y, r: s * m.r * lerp(0.30, 1, o.open) };
+}
+
+function headHalo(ctx, head, o) {
+  const { cy, r } = headMass(head, o);
+  // Ramped in with the bloom itself, from nothing. The halo exists to lift a
+  // bloom off a sky it matches, so before there is a bloom there is nothing
+  // to lift — and a rosette in particular draws no petals at all until it
+  // opens, which made any shade at all read as a stain on empty sky. By the
+  // time the stem is worth cutting the flower is well open and fully backed.
+  const a = o.open;
+  if (r <= 0.5 || a <= 0.02) return;
   const g = ctx.createRadialGradient(0, cy, r * 0.1, 0, cy, r);
-  g.addColorStop(0, 'rgba(10,16,12,.42)');
-  g.addColorStop(0.5, 'rgba(10,16,12,.26)');
+  g.addColorStop(0, `rgba(10,16,12,${0.42 * a})`);
+  g.addColorStop(0.5, `rgba(10,16,12,${0.26 * a})`);
   g.addColorStop(1, 'rgba(10,16,12,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
