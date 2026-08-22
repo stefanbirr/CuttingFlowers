@@ -575,7 +575,10 @@ export class Game {
     this.bouquet = null;
     const best = store.get('best');
     const newBest = this.total > best;
-    store.recordRun(this.total, this.round);
+    // gameOver() only runs on a round that was NOT cleared (see showResults()),
+    // so the highest round actually unlocked for level select is the one
+    // before this — round - 1, never the failed round itself.
+    store.recordRun(this.total, this.round - 1);
 
     const reason = this.endReason === 'stung'
       ? t('over.reasonStung', { round: this.round })
