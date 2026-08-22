@@ -6,6 +6,7 @@ import { Flower } from './flower.js';
 import { Blade, patternScore, crossScore } from './gesture.js';
 import { gradeCut, weakestPart } from './scoring.js';
 import { Scene } from './scene.js';
+import { setLight } from './draw.js';
 import { Particles } from './particles.js';
 import { Bouquet, scoreBouquet } from './bouquet.js';
 import { sound } from './audio.js';
@@ -26,6 +27,7 @@ export class Game {
     this.blade.onStrokeEnd = (id) => this.onStrokeEnd(id);
 
     this.state = 'menu';
+    this.slowmo = 0;
     this.flowers = [];
     this.pieces = [];
     this.pending = [];
@@ -98,6 +100,7 @@ export class Game {
     this.bouquet = null;
 
     this.roundPoints = 0;
+    this.slowmo = 0;
     this.strikes = 0;
     this.stungCount = 0;
     this.streak = 0;
@@ -274,7 +277,7 @@ export class Game {
 
   severNow(rec) {
     const f = rec.flower;
-    const piece = f.sever(rec.t);
+    const piece = f.sever(rec.t, Math.atan2(rec.dir.y, rec.dir.x));
     const push = 320 * this.view.scale;
     piece.launch(
       rec.dir.x * push * rand(1.2, 0.6) + rand(60, -60),
@@ -379,7 +382,13 @@ export class Game {
     this.fx.kick(res.grade.shake);
 
     sound.snip(q);
-    if (q >= 0.93) { sound.perfect(); store.bump('immaculate'); }
+    if (q >= 0.93) {
+      sound.perfect();
+      store.bump('immaculate');
+      // Hang on the moment just long enough to see it. Short by design —
+      // the round is on a clock and the rhythm matters more than the flourish.
+      this.slowmo = CFG.slowmoMs;
+    }
     if (navigator.vibrate) navigator.vibrate(q > 0.8 ? [8, 24, 12] : 14);
 
     this.harvest.push({
@@ -605,6 +614,9 @@ export class Game {
       ctx.translate(rand(this.fx.shake, -this.fx.shake), rand(this.fx.shake, -this.fx.shake));
     }
 
+    // Every plant this frame is lit by whatever hangs in this round's sky.
+    setLight(this.scene.light);
+
     this.scene.draw(ctx, this.time);
     this.fx.drawPollen(ctx);
 
@@ -628,6 +640,9 @@ export class Game {
 
     this.fx.draw(ctx);
     this.blade.draw(ctx, now);
+    // Closest thing to the player, so it goes over the plants and the blade
+    // — but under the score popups, which have to stay readable.
+    if (!this.bouquet) this.scene.drawFringe(ctx, this.time);
     this.fx.drawLabels(ctx);
     ctx.restore();
   }
@@ -656,8 +671,17 @@ export class Game {
   /* ── Main tick ──────────────────────────────────────────────────── */
 
   frame(now) {
-    const dt = Math.min(50, now - (this.last || now));
+    let dt = Math.min(50, now - (this.last || now));
     this.last = now;
+
+    // An immaculate cut briefly slows the world. The clock slows with it,
+    // which is the point: a perfect cut buys back a sliver of the round.
+    if (this.slowmo > 0) {
+      this.slowmo = Math.max(0, this.slowmo - dt);
+      const k = this.slowmo / CFG.slowmoMs;
+      dt *= lerp(1, CFG.slowmoScale, k * k);
+    }
+
     if (this.state !== 'paused') this.time += dt;
 
     if (this.state === 'binding') {

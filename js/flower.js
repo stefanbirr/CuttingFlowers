@@ -6,7 +6,7 @@ import {
   clamp, lerp, invLerp, smoothstep, rand, TAU, qPoint, qTangent,
   segIntersect, tolScore, withAlpha, shade, mix, hash01,
 } from './util.js';
-import { drawStem, drawLeaves, drawHead, pickPalette } from './draw.js';
+import { drawStem, drawLeaves, drawHead, drawCutFace, pickPalette, getLight } from './draw.js';
 
 const SAMPLES = 18;
 
@@ -24,6 +24,9 @@ export class Flower {
     this.lean = rand(st.lean, -st.lean);
     this.bow = rand(0.16, -0.16) + this.lean * 0.4;
     this.width = st.width * view.scale;
+    // Slender stems whip about in the wind; a sunflower's thick stalk barely
+    // notices it. Keyed off the species' own drawn width.
+    this.flex = clamp(5 / st.width, 0.55, 1.7);
 
     const slow = Math.max(CFG.lifespanFloor, Math.pow(0.95, round - 1));
     this.lifespan = species.lifespan * slow;
@@ -94,10 +97,21 @@ export class Flower {
 
   /* ── Geometry ───────────────────────────────────────────────────── */
 
+  /** How far this stem is leaning at a given moment. */
+  swayAt(time) {
+    const w = CFG.wind;
+    // The gust's phase depends on where the stem stands, so neighbours lean
+    // together and the crest visibly travels across the meadow.
+    const phase = (this.baseX / (this.view.w || 1)) * w.waves - time / w.period;
+    const gust = Math.sin(phase * TAU);
+    const breeze = Math.sin(time / 900 + this.swayPhase);
+    return (gust * w.gust + breeze * w.breeze + breeze * this.wilt * 0.05) * this.flex;
+  }
+
   updateGeometry(time) {
     const len = this.maxLen * this.grown;
     this.len = len;
-    const sway = Math.sin(time / 900 + this.swayPhase) * (0.035 + this.wilt * 0.05);
+    const sway = this.swayAt(time);
     const droop = this.wilt * 0.28;
 
     const p0 = { x: this.baseX, y: this.baseY };
@@ -115,7 +129,11 @@ export class Flower {
     for (let i = 0; i <= SAMPLES; i++) pts.push(qPoint(p0, ctrl, tip, i / SAMPLES));
 
     const tan = qTangent(p0, ctrl, tip, 1);
-    this.tipAngle = Math.atan2(tan.y, tan.x) + Math.PI / 2;
+    // The head is the heavy end: it arrives where the stem was a moment ago,
+    // not where it is now. Comparing against the sway a little in the past
+    // gives that lag without having to carry any velocity state around.
+    const lag = sway - this.swayAt(time - CFG.wind.headLag);
+    this.tipAngle = Math.atan2(tan.y, tan.x) + Math.PI / 2 - lag * CFG.wind.lagTilt;
   }
 
   pointAt(t) { return qPoint(this.p0, this.p1, this.p2, t); }
@@ -125,6 +143,12 @@ export class Flower {
     const d = qTangent(this.p0, this.p1, this.p2, t);
     const l = Math.hypot(d.x, d.y) || 1;
     return { x: d.x / l, y: d.y / l };
+  }
+
+  /** Heading of the stem at parameter t, in radians. */
+  dirAngle(t) {
+    const d = this.dirAt(t);
+    return Math.atan2(d.y, d.x);
   }
 
   /* ── Slicing ────────────────────────────────────────────────────── */
@@ -144,8 +168,14 @@ export class Flower {
     return null;
   }
 
-  /** Split the plant, returning the harvested piece (head + upper stem). */
-  sever(t) {
+  /** Split the plant, returning the harvested piece (head + upper stem).
+      `bladeAngle` is the direction the blade travelled, so both halves can
+      show the same slanted face where it went through. */
+  sever(t, bladeAngle = 0) {
+    // Kept in world orientation. The stub stays put so it reads directly,
+    // and the flying piece is drawn inside its own spin, which turns the
+    // face with it exactly as it should.
+    this.cutAngle = bladeAngle;
     const cutPt = this.pointAt(t);
     const rel = [];
     for (let i = 0; i <= 10; i++) {
@@ -170,8 +200,12 @@ export class Flower {
       ctx.save();
       ctx.globalAlpha = fade;
       const n = Math.max(2, Math.round(this.stubT * SAMPLES));
-      drawStem(ctx, this.pts.slice(0, n + 1), this.width, shade(sp.stem.color, -10),
+      const stub = this.pts.slice(0, n + 1);
+      drawStem(ctx, stub, this.width, shade(sp.stem.color, -10),
         { taper: 0.9, seed: this.seed });
+      const end = stub[stub.length - 1];
+      drawCutFace(ctx, end.x, end.y, this.cutAngle ?? 0, this.width,
+        shade(sp.stem.color, 46));
       ctx.restore();
       return;
     }
@@ -181,10 +215,17 @@ export class Flower {
     const headScale = this.headScale * smoothstep(clamp(invLerp(0.05, PHASE.bud, this.life), 0, 1));
 
     ctx.save();
-    // Soil shadow
+    // Soil shadow, thrown away from wherever the sun happens to be. A low
+    // sun at dawn or dusk rakes it out long across the ground.
+    const L = getLight();
+    const stretch = 1 + (1 - Math.abs(L.y)) * 2.6;
     ctx.fillStyle = 'rgba(0,0,0,.22)';
     ctx.beginPath();
-    ctx.ellipse(this.baseX, this.baseY + 3, this.width * 1.9, this.width * 0.7, 0, 0, TAU);
+    ctx.ellipse(
+      this.baseX - L.x * this.width * stretch * 1.1, this.baseY + 3,
+      this.width * 1.9 * stretch, this.width * 0.7,
+      0, 0, TAU,
+    );
     ctx.fill();
 
     const wiltCol = this.wilt > 0
@@ -226,6 +267,7 @@ export class Flower {
         scale: headScale,
         seed: this.seed,
         palette: this.palette,
+        headAngle: this.tipAngle,
       });
       ctx.restore();
     }
@@ -388,6 +430,7 @@ export class CutPiece {
       relPts[relPts.length - 1].x - relPts[relPts.length - 2].x,
     );
     this.stemLen = flower.len * (1 - flower.stubT);
+    this.cutAngle = flower.cutAngle ?? 0;
     this.x = at.x; this.y = at.y;
     this.rot = 0;
     this.age = 0;
@@ -432,13 +475,20 @@ export class CutPiece {
     drawStem(ctx, this.rel, this.width, this.species.stem.color, { taper: 0.7, seed: this.seed });
     drawLeaves(ctx, this.rel, Math.min(1, this.species.stem.leaves || 0),
       this.species.stem.color, this.headScale, this.seed);
+    // rel[0] is the cut end, which is where this piece came away.
+    drawCutFace(ctx, this.rel[0].x, this.rel[0].y, this.cutAngle, this.width,
+      shade(this.species.stem.color, 46));
     const tip = this.rel[this.rel.length - 1];
     const prev = this.rel[this.rel.length - 2];
+    const headAngle = Math.atan2(tip.y - prev.y, tip.x - prev.x) + Math.PI / 2;
     ctx.translate(tip.x, tip.y);
-    ctx.rotate(Math.atan2(tip.y - prev.y, tip.x - prev.x) + Math.PI / 2);
+    ctx.rotate(headAngle);
     drawHead(ctx, this.species.head, {
       open: this.open, wilt: this.wilt, scale: this.headScale,
       seed: this.seed, palette: this.palette,
+      // The piece is tumbling, so its own spin counts toward where the sun
+      // falls on it as much as the angle of the stem it is still attached to.
+      headAngle: headAngle + this.rot,
     });
     ctx.restore();
   }

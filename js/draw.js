@@ -7,6 +7,25 @@
 
 import { TAU, hash01, shade, withAlpha, clamp, lerp } from './util.js';
 
+/* ── Light ────────────────────────────────────────────────────────── */
+
+/* One directional light for the whole scene, set from wherever the sun or
+   moon hangs in the current mood (see scene.js). It lives at module scope
+   because it behaves like a shader uniform: every plant in a frame is lit
+   by the same sun, and threading it through each call would be noise.
+
+   `x`/`y` point from the world toward the light. `rim` is how strongly the
+   blooms are backlit — high when the sun sits low and behind them. */
+let LIGHT = { x: -0.45, y: -0.89, rim: 0.4, color: '#ffffff' };
+
+export function setLight(l) { LIGHT = { ...LIGHT, ...l }; }
+export function getLight() { return LIGHT; }
+
+function rotateVec(v, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return { x: v.x * c - v.y * s, y: v.x * s + v.y * c };
+}
+
 /* ── Stem ─────────────────────────────────────────────────────────── */
 
 export function drawStem(ctx, pts, width, color, opts = {}) {
@@ -46,9 +65,11 @@ export function drawStem(ctx, pts, width, color, opts = {}) {
   }
 
   // Lit and shaded edges tracked along the stem's own normal, so the
-  // roundness survives a stem that leans or curves.
-  stemEdge(ctx, pts, width, taper, -0.26, withAlpha('#ffffff', 0.22), 0.26);
-  stemEdge(ctx, pts, width, taper, 0.30, 'rgba(0,0,0,.16)', 0.20);
+  // roundness survives a stem that leans or curves. Which side catches the
+  // light follows the sun rather than being pinned to one side.
+  const lit = LIGHT.x >= 0 ? 1 : -1;
+  stemEdge(ctx, pts, width, taper, lit * 0.26, withAlpha('#ffffff', 0.22), 0.26);
+  stemEdge(ctx, pts, width, taper, lit * -0.30, 'rgba(0,0,0,.16)', 0.20);
 
   if (thorns) {
     ctx.fillStyle = shade(color, -34);
@@ -74,6 +95,31 @@ function strokePath(ctx, pts) {
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.stroke();
+}
+
+/* The pale face left where the blade went through. Small, but it is the
+   only direct evidence of the angle you actually cut at — and the angle is
+   most of what the game is asking you to get right. */
+export function drawCutFace(ctx, x, y, bladeAngle, width, color) {
+  const half = width * 0.6;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(bladeAngle);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1.3, width * 0.4);
+  ctx.beginPath();
+  ctx.moveTo(-half, 0);
+  ctx.lineTo(half, 0);
+  ctx.stroke();
+  // A wet glint along the top edge of the fresh cut.
+  ctx.strokeStyle = withAlpha('#ffffff', 0.5);
+  ctx.lineWidth = Math.max(0.7, width * 0.16);
+  ctx.beginPath();
+  ctx.moveTo(-half * 0.72, -width * 0.1);
+  ctx.lineTo(half * 0.72, -width * 0.1);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** A line running parallel to the stem, `offset` half-widths to one side. */
@@ -105,6 +151,10 @@ export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
     const stemAng = Math.atan2(p.y - q.y, p.x - q.x);
     const len = scale * (16 + hash01(seed + i) * 8);
     const droop = 0.26 + hash01(seed + i * 2.1) * 0.2;
+    // A leaf hanging on the sunward side of the stem catches the light;
+    // one on the far side sits in the stem's own shadow.
+    const facing = (side > 0) === (LIGHT.x > 0);
+    const leafCol = shade(color, facing ? 12 : -18);
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(stemAng + side * (0.7 + hash01(seed + i * 3) * 0.4));
@@ -115,9 +165,9 @@ export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
     ctx.quadraticCurveTo(len * 0.45, -len * droop, len, len * 0.06);
     ctx.quadraticCurveTo(len * 0.5, len * droop * 0.85, 0, 0);
     const g = ctx.createLinearGradient(0, 0, len, 0);
-    g.addColorStop(0, shade(color, -20));
-    g.addColorStop(0.6, color);
-    g.addColorStop(1, shade(color, 12));
+    g.addColorStop(0, shade(leafCol, -20));
+    g.addColorStop(0.6, leafCol);
+    g.addColorStop(1, shade(leafCol, 12));
     ctx.fillStyle = g;
     ctx.fill();
     ctx.strokeStyle = withAlpha('#0a140c', 0.28);
@@ -139,13 +189,43 @@ export function drawLeaves(ctx, pts, count, color, scale, seed = 0) {
 
 /**
  * @param {object} o  { open: 0..1 bloom, wilt: 0..1, scale, seed, palette,
- *                      halo: draw the separation pool behind the head }
+ *                      halo: draw the separation pool behind the head,
+ *                      headAngle: rotation already applied to the context,
+ *                        so the scene light can be resolved into head space }
  */
 export function drawHead(ctx, head, o) {
   const fn = HEADS[head.type];
   if (!fn) return;
+  // The caller has already rotated the context onto the stem tip; undo that
+  // rotation to learn which way the sun lies from the bloom's point of view.
+  const L = rotateVec(LIGHT, -(o.headAngle || 0));
   if (o.halo !== false) headHalo(ctx, head, o);
-  fn(ctx, head, o);
+  fn(ctx, head, o, L);
+  if (o.halo !== false && LIGHT.rim > 0.02) headRim(ctx, head, o, L);
+}
+
+/* A wash of light across the sunward face of the bloom. At dawn and dusk
+   the sun sits low and behind the meadow, and catching that on the petals
+   is what sells the hour — without it every mood lights the same way. */
+function headRim(ctx, head, o, L) {
+  const s = o.scale * head.size;
+  const m = HEAD_MASS[head.type] || { y: -0.55, r: 0.9 };
+  const r = s * m.r * lerp(0.7, 1, o.open);
+  if (r <= 1) return;
+  const cy = s * m.y;
+  const strength = LIGHT.rim * (1 - o.wilt * 0.5);
+  // Pooled toward the sun and faded radially rather than clipped to the
+  // bloom's outline: a hard clip leaves a visible disc edge printed on the
+  // sky, and the soft spill reads as haze around a backlit flower anyway.
+  const ox = L.x * r * 0.55, oy = cy + L.y * r * 0.55;
+  const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, r * 1.15);
+  g.addColorStop(0, withAlpha(LIGHT.color, 0.34 * strength));
+  g.addColorStop(0.55, withAlpha(LIGHT.color, 0.12 * strength));
+  g.addColorStop(1, withAlpha(LIGHT.color, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(ox, oy, r * 1.15, 0, TAU);
+  ctx.fill();
 }
 
 /* Roughly where each head type's mass sits in local space, in fractions of
@@ -192,15 +272,20 @@ function petalPath(ctx, len, wid, curl = 0.35) {
   ctx.closePath();
 }
 
-/* A petal with some volume in it: shaded where it meets the centre,
-   brightest near the tip, and outlined so neighbouring petals stay
-   distinct instead of merging into one flat blob of colour. */
-function fillPetal(ctx, len, wid, curl, color, edgeWidth = 0) {
+/* A petal with some volume in it, shaded along the light rather than along
+   its own axis: a petal turned away from the sun genuinely sits in shadow,
+   which is what makes a ring of them read as a dome instead of a rosette
+   of flat spokes. Outlined too, so neighbours stay distinct.
+
+   `L` is the light direction in this petal's own rotated space. */
+function fillPetal(ctx, len, wid, curl, color, L, edgeWidth = 0) {
   petalPath(ctx, len, wid, curl);
-  const g = ctx.createLinearGradient(0, 0, 0, -len);
-  g.addColorStop(0, shade(color, -30));
+  const cy = -len * 0.5;
+  const ex = L.x * len * 0.62, ey = L.y * len * 0.62;
+  const g = ctx.createLinearGradient(-ex, cy - ey, ex, cy + ey);
+  g.addColorStop(0, shade(color, -34));
   g.addColorStop(0.5, color);
-  g.addColorStop(1, shade(color, 20));
+  g.addColorStop(1, shade(color, 26));
   ctx.fillStyle = g;
   ctx.fill();
   ctx.strokeStyle = withAlpha(shade(color, -70), 0.4);
@@ -210,7 +295,7 @@ function fillPetal(ctx, len, wid, curl, color, edgeWidth = 0) {
 
 const HEADS = {
   /* Tulip: a tight cup that splays as it opens and gapes when it wilts. */
-  cup(ctx, head, o) {
+  cup(ctx, head, o, L) {
     const s = o.scale * head.size;
     const p = o.palette;
     const spread = lerp(0.06, 0.55, o.open) + o.wilt * 0.75;
@@ -221,7 +306,7 @@ const HEADS = {
       const depth = 1 - Math.abs(f) * 0.35;
       ctx.save();
       ctx.rotate(ang);
-      fillPetal(ctx, s * depth, s * 0.34, 0.5, i % 2 ? p[1] : p[0]);
+      fillPetal(ctx, s * depth, s * 0.34, 0.5, i % 2 ? p[1] : p[0], rotateVec(L, -ang));
       ctx.restore();
     }
     // The inner petal, catching a little light down the throat of the cup.
@@ -236,7 +321,7 @@ const HEADS = {
   },
 
   /* Rose: rings of petals, the outer ones unfurling first. */
-  rosette(ctx, head, o) {
+  rosette(ctx, head, o, L) {
     const s = o.scale * head.size;
     const p = o.palette;
     const rings = 3;
@@ -255,7 +340,8 @@ const HEADS = {
         ctx.rotate(droop * 0.8);
         // Outer rings sit in the shade of the ones above them.
         const petal = shade(p[Math.min(p.length - 1, 2 - r)], -8 * r);
-        fillPetal(ctx, rad * (1 + droop * 0.3), rad * 0.62, 0.55, petal);
+        fillPetal(ctx, rad * (1 + droop * 0.3), rad * 0.62, 0.55, petal,
+          rotateVec(L, -(a + droop * 0.8)));
         ctx.restore();
       }
     }
@@ -270,7 +356,7 @@ const HEADS = {
   },
 
   /* Daisy / sunflower: ray florets around a disc. */
-  disc(ctx, head, o) {
+  disc(ctx, head, o, L) {
     const s = o.scale * head.size;
     const p = o.palette;
     const n = head.petals;
@@ -284,11 +370,11 @@ const HEADS = {
       ctx.translate(0, -s * 0.28);
       ctx.rotate(droop);
       fillPetal(ctx, rayLen * (1 - o.wilt * 0.25), s * 0.16, 0.3,
-        i % 3 === 0 ? (p[1] || p[0]) : p[0]);
+        i % 3 === 0 ? (p[1] || p[0]) : p[0], rotateVec(L, -(a + droop)));
       ctx.restore();
     }
     const cr = s * 0.32;
-    const g = ctx.createRadialGradient(-cr * 0.3, -cr * 0.3, cr * 0.1, 0, 0, cr);
+    const g = ctx.createRadialGradient(L.x * cr * 0.34, L.y * cr * 0.34, cr * 0.1, 0, 0, cr);
     g.addColorStop(0, shade(head.centre, 46));
     g.addColorStop(0.72, head.centre);
     g.addColorStop(1, shade(head.centre, -26));
@@ -341,7 +427,7 @@ const HEADS = {
   },
 
   /* Hydrangea: a ball of four-petal florets. */
-  pom(ctx, head, o) {
+  pom(ctx, head, o, L) {
     const s = o.scale * head.size;
     const p = o.palette;
     const rad = s * 0.5 * lerp(0.4, 1, o.open);
@@ -354,9 +440,11 @@ const HEADS = {
       ctx.save();
       ctx.translate(fx, fy);
       ctx.rotate(a);
-      // Florets deeper in the ball sit further into shadow.
+      // Florets deeper in the ball sit further into shadow, and the face of
+      // the ball turned toward the sun is brighter than the far side.
       const depth = 1 - 0.3 * (r / (rad || 1));
-      const petal = shade(p[i % p.length], -34 * (1 - depth));
+      const toward = rad > 0 ? (fx * L.x + fy * L.y) / rad : 0;
+      const petal = shade(p[i % p.length], -34 * (1 - depth) + toward * 18);
       for (let k = 0; k < 4; k++) {
         ctx.save();
         ctx.rotate((k / 4) * TAU);
@@ -442,7 +530,7 @@ const HEADS = {
   },
 
   /* Eucalyptus: round coin leaves alternating up the sprig. */
-  sprig(ctx, head, o) {
+  sprig(ctx, head, o, L) {
     const s = o.scale * head.size;
     const p = head.colors;
     const n = head.pairs;
@@ -463,7 +551,7 @@ const HEADS = {
       ctx.translate(x + side * r * 0.85, y);
       ctx.rotate(side * 0.4 + o.wilt * 0.3);
       const coin = i % 3 === 0 ? p[1] : p[0];
-      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r);
+      const g = ctx.createRadialGradient(L.x * r * 0.34, L.y * r * 0.34, r * 0.1, 0, 0, r);
       g.addColorStop(0, shade(coin, 26));
       g.addColorStop(1, shade(coin, -14));
       ctx.fillStyle = g;

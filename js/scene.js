@@ -17,30 +17,35 @@ import { rand, lerp, TAU, hash01, withAlpha, mix, shade, desaturate } from './ut
 const MOODS = [
   {
     name: 'dawn',
+    sunAt: [0.24, 0.70], rim: 0.85,
     sky: ['#f9d7a8', '#f2a99b', '#8f8fc4'], sun: '#fff3cf',
     hill: ['#4c6b57', '#3a5546'], soil: '#3a2c22', grass: '#4e8c56',
     cloud: '#ffe6d2', clouds: 5, mute: 0.28, dark: 0.1,
   },
   {
     name: 'noon',
+    sunAt: [0.64, 0.20], rim: 0.22,
     sky: ['#8fd4f2', '#bfe7f7', '#e8f6df'], sun: '#fffbe8',
     hill: ['#5d9060', '#3f6f4a'], soil: '#42301f', grass: '#5aa860',
     cloud: '#ffffff', clouds: 6, mute: 0.3, dark: 0.12,
   },
   {
     name: 'gold',
+    sunAt: [0.80, 0.64], rim: 1.00,
     sky: ['#ffd08a', '#ffb46b', '#c9788a'], sun: '#fff0c0',
     hill: ['#5a7d4c', '#3d5c40'], soil: '#3d2b1c', grass: '#6a9c4e',
     cloud: '#ffd9b4', clouds: 4, mute: 0.3, dark: 0.11,
   },
   {
     name: 'dusk',
+    sunAt: [0.84, 0.76], rim: 0.80,
     sky: ['#4a4a8c', '#8f6aa8', '#e08a86'], sun: '#ffd9b8',
     hill: ['#33475a', '#26333f'], soil: '#2a2129', grass: '#3f7057',
     cloud: '#9c7fa8', clouds: 3, mute: 0.22, dark: 0.08,
   },
   {
     name: 'night',
+    sunAt: [0.72, 0.28], rim: 0.35,
     sky: ['#131e3a', '#25325c', '#4a4270'], sun: '#dfe8ff',
     hill: ['#1d2c3a', '#141d28'], soil: '#1e1a20', grass: '#2f5c48',
     cloud: '#2a3350', clouds: 2, mute: 0.10, dark: 0.02,
@@ -56,6 +61,8 @@ export class Scene {
     this.mood = MOODS[1];
     this.bg = document.createElement('canvas');
     this.tufts = [];
+    this.sun = { x: 0, y: 0 };
+    this.light = { x: -0.45, y: -0.89, rim: 0.4, color: '#ffffff' };
   }
 
   setRound(round) {
@@ -96,8 +103,16 @@ export class Scene {
 
     if (m.name === 'night') this.drawStars(ctx, w, horizon);
 
-    // Sun / moon with a soft bloom
-    const sx = w * 0.72, sy = horizon * 0.36, sr = Math.min(w, h) * 0.075;
+    // Sun / moon with a soft bloom. Where it hangs is the mood's own —
+    // dawn low in the east, gold and dusk sinking in the west — and it is
+    // the same position everything in the field is then lit from.
+    const sx = w * m.sunAt[0], sy = horizon * m.sunAt[1], sr = Math.min(w, h) * 0.075;
+    this.sun = { x: sx, y: sy };
+    // Direction from the meadow toward the light, treated as parallel rays.
+    const lx = sx - w * 0.5, ly = sy - groundY * 0.72;
+    const ll = Math.hypot(lx, ly) || 1;
+    this.light = { x: lx / ll, y: ly / ll, rim: m.rim, color: m.sun };
+
     const glow = ctx.createRadialGradient(sx, sy, sr * 0.4, sx, sy, sr * 5);
     glow.addColorStop(0, withAlpha(m.sun, 0.42));
     glow.addColorStop(1, withAlpha(m.sun, 0));
@@ -302,11 +317,61 @@ export class Scene {
       });
     }
     this.tufts.sort((a, b) => a.depth - b.depth);
+    this.buildFringe();
+  }
+
+  /* Out-of-focus blades right at the bottom of the screen, drawn over
+     everything. Costs almost nothing and buys real depth — but it is kept
+     low and weighted to the edges, because a stem's cut band can sit close
+     to the soil and must never end up hidden behind scenery. */
+  buildFringe() {
+    const { w, h, scale } = this.view;
+    this.fringe = [];
+    const n = Math.round(w / (26 / scale));
+    for (let i = 0; i < n; i++) {
+      const x = (i / n) * w + rand(18, -18);
+      // Tallest at the edges, barely there across the middle of the field.
+      const edge = Math.abs(x / w - 0.5) * 2;
+      const reach = lerp(0.30, 1, edge * edge);
+      this.fringe.push({
+        x,
+        y: h + 4 * scale,
+        hgt: rand(78, 34) * scale * reach,
+        lean: rand(0.6, -0.6),
+        ph: rand(TAU),
+        w: rand(9, 4) * scale,
+        alpha: 0.30 + Math.random() * 0.22,
+      });
+    }
   }
 
   draw(ctx) {
     const { dpr } = this.view;
     ctx.drawImage(this.bg, 0, 0, this.bg.width / dpr, this.bg.height / dpr);
+  }
+
+  /** The out-of-focus fringe, drawn last of all — closest to the player. */
+  drawFringe(ctx, time) {
+    if (!this.fringe) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const f of this.fringe) {
+      const sway = Math.sin(time / 1400 + f.ph) * 0.16;
+      // Softened by stacking a couple of wide translucent passes rather than
+      // a real blur: ctx.filter is unreliable on mobile Safari.
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.strokeStyle = `rgba(8,16,12,${f.alpha * (pass ? 0.55 : 1)})`;
+        ctx.lineWidth = f.w * (pass ? 2.1 : 1);
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y);
+        ctx.quadraticCurveTo(
+          f.x + (f.lean + sway) * f.hgt * 0.35, f.y - f.hgt * 0.6,
+          f.x + (f.lean + sway) * f.hgt, f.y - f.hgt,
+        );
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   /** Foreground grass, drawn over the plant bases. */

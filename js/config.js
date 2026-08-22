@@ -41,6 +41,24 @@ export const CFG = {
   quotaBase: 950,
   quotaGrowth: 1.26,
 
+  /* Wind. A gust travels across the meadow rather than every stem drifting
+     on its own clock, so the field leans together the way a real one does.
+     Amplitudes stay small: the stem you are aiming at is the stem you cut,
+     so anything livelier would just make the blade harder to place. */
+  wind: {
+    breeze: 0.017,      // per-stem idle drift, keeps stems from moving in lockstep
+    gust: 0.025,        // extra lean at the crest of a passing gust
+    waves: 1.35,        // gust crests visible across the field at once
+    period: 5200,       // ms for a crest to cross the whole meadow
+    headLag: 90,        // ms the (heavy) head trails behind its stem
+    lagTilt: 3.2,       // how far that lag tips the bloom
+  },
+
+  /* The beat the game holds on an immaculate cut, and how far time slows
+     during it. Kept brief so the round keeps its rhythm. */
+  slowmoMs: 190,
+  slowmoScale: 0.34,
+
   /* Practice: one chosen flower at a time, dead centre, no clock. */
   practiceRespawn: 700,   // ms of calm after a cut before the next sprouts
 
