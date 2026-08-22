@@ -477,7 +477,8 @@ export class Game {
         }
       }
 
-      if (!practice && this.timeLeft <= 0) this.endRound('time');
+      if (!practice && this.roundPoints >= this.quota) this.endRound('cleared');
+      else if (!practice && this.timeLeft <= 0) this.endRound('time');
     } else if (this.state === 'menu') {
       // A quiet garden keeps growing behind the title.
       this.spawnIn -= dt;
