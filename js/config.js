@@ -37,9 +37,29 @@ export const CFG = {
   stingPenalty: 100,
 
   /* Quota to clear a round: grows super-linearly. Round 1 wants roughly a
-     dozen decent stems; by round 5 sloppy cutting will not keep up. */
+     dozen decent stems; by round 5 sloppy cutting will not keep up.
+
+     That 26%-per-round growth is only fair while the field itself is
+     getting more generous at close to that rate — and it is, but only
+     through round 7. maxAlive climbs from 2 to 4 over rounds 1-7 (see
+     maxAliveStep/maxAliveCap below) and the spawn gap keeps shrinking, so
+     both how many stems can be on screen and how fast they arrive are
+     rising together, roughly tracking the quota. Once maxAlive hits its
+     cap at round 7, only the spawn gap keeps improving — and it is most
+     of the way to its own floor by then — so a target that kept
+     compounding at 26% would be asking for a scoring rate the field can no
+     longer physically supply, not a harder round. Confirmed empirically: a
+     bot that cuts at the right angle, point and speed and never touches a
+     hazard cleared rounds 1-7 at 100-113% of quota, then round 10 at just
+     39% under the old single-rate curve. quotaGrowthLate is deliberately
+     held under the ~10%/round the spawn gap alone can still buy, since the
+     quota is a hard pass/fail and spawn luck (species mix, layout) varies
+     run to run — the margin is there so an unlucky round is still winnable
+     on skill, not just a lucky one. */
   quotaBase: 950,
   quotaGrowth: 1.26,
+  quotaGrowthLate: 1.08,
+  quotaPlateauRound: 7,   // the round maxAlive first reaches maxAliveCap
 
   /* Wind. A gust travels across the meadow rather than every stem drifting
      on its own clock, so the field leans together the way a real one does.
@@ -121,6 +141,18 @@ export const CFG = {
   comboKeepAbove: 0.62,   // quality needed to build the combo
   comboBreakBelow: 0.40,  // quality that snaps it
 };
+
+/** The points needed to clear a round — two growth rates spliced at
+    quotaPlateauRound, where maxAlive stops climbing (see CFG.quotaGrowth's
+    comment for why the split exists). */
+export function quotaForRound(round) {
+  const { quotaBase, quotaGrowth, quotaGrowthLate, quotaPlateauRound } = CFG;
+  if (round <= quotaPlateauRound) {
+    return Math.round(quotaBase * Math.pow(quotaGrowth, round - 1));
+  }
+  const atPlateau = quotaBase * Math.pow(quotaGrowth, quotaPlateauRound - 1);
+  return Math.round(atPlateau * Math.pow(quotaGrowthLate, round - quotaPlateauRound));
+}
 
 /* Life-cycle phase boundaries, as fractions of a stem's lifespan. */
 export const PHASE = {

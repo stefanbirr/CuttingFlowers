@@ -1,6 +1,6 @@
 /* DOM chrome: screens, HUD, field guide, results panels. */
 
-import { CFG } from './config.js';
+import { quotaForRound } from './config.js';
 import { SPECIES } from './species.js';
 import { drawStem, drawHead } from './draw.js';
 import { clamp } from './util.js';
@@ -166,7 +166,7 @@ export const ui = {
       tech.className = 'pick-tech';
       tech.textContent = locked
         ? t('levels.locked', { n: unlockedThrough })
-        : t('levels.goal', { n: fmtNum(Math.round(CFG.quotaBase * Math.pow(CFG.quotaGrowth, round - 1))) });
+        : t('levels.goal', { n: fmtNum(quotaForRound(round)) });
 
       btn.append(name, tech);
       if (!locked) btn.addEventListener('click', () => onPick(round));

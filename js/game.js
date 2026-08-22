@@ -1,6 +1,6 @@
 /* Game state machine: spawning, slicing, grading, rounds and bouquets. */
 
-import { CFG } from './config.js';
+import { CFG, quotaForRound } from './config.js';
 import { poolForRound, pickSpecies } from './species.js';
 import { Flower } from './flower.js';
 import { Blade, patternScore, crossScore } from './gesture.js';
@@ -108,7 +108,7 @@ export class Game {
     this.cutCount = 0;
     this.timeLeft = CFG.roundSeconds * 1000;
     this.spawnIn = 500;
-    this.quota = Math.round(CFG.quotaBase * Math.pow(CFG.quotaGrowth, this.round - 1));
+    this.quota = quotaForRound(this.round);
     this.pool = poolForRound(this.round);
     this.lastTickSecond = 99;
 
