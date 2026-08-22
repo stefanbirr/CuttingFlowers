@@ -1,7 +1,7 @@
 /* Offline shell. Cache-first for the game's own files, with a network
    fallback and a stale-while-revalidate refresh so updates land quietly. */
 
-const VERSION = 'bloom-blade-v8';
+const VERSION = 'bloom-blade-v9';
 const SHELL = [
   '.',
   'index.html',

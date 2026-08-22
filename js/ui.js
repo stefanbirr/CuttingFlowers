@@ -1,8 +1,10 @@
 /* DOM chrome: screens, HUD, field guide, results panels. */
 
+import { CFG } from './config.js';
 import { SPECIES } from './species.js';
 import { drawStem, drawHead } from './draw.js';
 import { clamp } from './util.js';
+import { store } from './storage.js';
 import {
   t, plural, fmtNum, speciesName, speciesHint, kindLabel,
   angleLabel, pointBandLabel, speedLabelShort, patternLabelShort, patternLabelLong,
@@ -34,6 +36,7 @@ export const ui = {
     finalScore: $('finalScore'),
     finalSub: $('finalSub'),
     pickGrid: $('pickGrid'),
+    levelGrid: $('levelGrid'),
     hudPractice: $('hudPractice'),
     practiceName: $('practiceName'),
     practiceHint: $('practiceHint'),
@@ -141,6 +144,36 @@ export const ui = {
     }
   },
 
+  /** Grid of every round unlocked so far, plus the next one to reach —
+      picking one jumps straight into a fresh run starting there. */
+  buildLevels(onPick) {
+    const grid = this.el.levelGrid;
+    grid.innerHTML = '';
+    const maxRound = Math.max(...SPECIES.map((sp) => sp.unlock));
+    const unlockedThrough = Math.max(1, (store.get('bestRound') || 0) + 1);
+    for (let round = 1; round <= maxRound; round++) {
+      const locked = round > unlockedThrough;
+      const btn = document.createElement('button');
+      btn.className = `pick-item${locked ? ' locked' : ''}`;
+      btn.type = 'button';
+      btn.disabled = locked;
+
+      const name = document.createElement('span');
+      name.className = 'pick-name level-num';
+      name.textContent = t('levels.round', { n: round });
+
+      const tech = document.createElement('span');
+      tech.className = 'pick-tech';
+      tech.textContent = locked
+        ? t('levels.locked', { n: unlockedThrough })
+        : t('levels.goal', { n: fmtNum(Math.round(CFG.quotaBase * Math.pow(CFG.quotaGrowth, round - 1))) });
+
+      btn.append(name, tech);
+      if (!locked) btn.addEventListener('click', () => onPick(round));
+      grid.appendChild(btn);
+    }
+  },
+
   /* ── Field guide ─────────────────────────────────────────────── */
 
   buildGuide(dpr = window.devicePixelRatio || 1) {
@@ -186,6 +219,7 @@ export const ui = {
     set('bestLineLabel', t('title.bestLine'));
     set('btnPlay', t('title.play'));
     set('btnPractice', t('title.practice'));
+    set('btnLevels', t('title.levels'));
     set('btnGuide', t('title.guide'));
     set('btnTutorial', t('title.tutorial'));
     set('fineprint', t('title.fineprint'));
@@ -202,6 +236,10 @@ export const ui = {
     set('practiceSubtitle', t('practice.subtitle'));
     set('btnPracticeBack', t('practice.back'));
     if (this._practiceSpecies) this.setPracticeMode(true, this._practiceSpecies);
+
+    set('levelsTitle', t('levels.title'));
+    set('levelsSubtitle', t('levels.subtitle'));
+    set('btnLevelsBack', t('levels.back'));
 
     set('pauseTitle', t('pause.title'));
     set('btnResume', t('pause.resume'));

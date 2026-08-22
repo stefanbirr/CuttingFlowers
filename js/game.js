@@ -67,10 +67,10 @@ export class Game {
 
   /* ── Round lifecycle ────────────────────────────────────────────── */
 
-  startRun() {
+  startRun(round = 1) {
     this.mode = 'run';
     this.total = 0;
-    this.round = 1;
+    this.round = round;
     this.startRound();
   }
 

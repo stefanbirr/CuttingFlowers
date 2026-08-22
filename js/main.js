@@ -36,6 +36,16 @@ on('btnPractice', () => {
   ui.show('screenPractice');
 });
 
+on('btnLevels', () => {
+  ui.buildLevels((round) => {
+    sound.ui();
+    ui.hide('screenLevels');
+    ui.hide('screenTitle');
+    game.startRun(round);
+  });
+  ui.show('screenLevels');
+});
+
 on('btnGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnTutorial', () => ui.show('screenTutorial'));
 on('btnPause', () => game.pause());
