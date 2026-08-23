@@ -1,7 +1,14 @@
-/* Offline shell. Cache-first for the game's own files, with a network
-   fallback and a stale-while-revalidate refresh so updates land quietly. */
+/* Offline shell.
 
-const VERSION = 'bloom-blade-v19';
+   One cache generation per deploy, written whole by install() and never
+   touched again. That matters more than it sounds: the game ships as a
+   graph of ES modules that only works if every file comes from the same
+   build. An earlier stale-while-revalidate scheme refreshed files one at a
+   time, so a load could mix a new module with an old one and die on a call
+   that did not exist yet. Serving strictly from the current generation
+   makes that impossible — updates arrive by bumping VERSION, all at once. */
+
+const VERSION = 'bloom-blade-v20';
 const SHELL = [
   '.',
   'index.html',
@@ -34,7 +41,9 @@ const SHELL = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(VERSION)
-      .then((c) => c.addAll(SHELL))
+      // 'reload' skips the HTTP cache, so a generation is the deploy that
+      // is live right now and not whatever the browser held on to.
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -53,27 +62,18 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigations: serve the shell so deep links work offline.
+  // Navigations: fresh when we can reach the network, shell when we can't.
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req).catch(() => caches.match('index.html', { ignoreSearch: true })
-        .then((r) => r || caches.match('.'))),
+      fetch(req).catch(() => caches.open(VERSION)
+        .then((c) => c.match('index.html', { ignoreSearch: true }).then((r) => r || c.match('.')))),
     );
     return;
   }
 
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then((hit) => {
-      const live = fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(VERSION).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => hit);
-      return hit || live;
-    }),
+    caches.open(VERSION)
+      .then((c) => c.match(req, { ignoreSearch: true }))
+      .then((hit) => hit || fetch(req)),
   );
 });

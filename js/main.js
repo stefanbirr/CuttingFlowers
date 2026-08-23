@@ -52,8 +52,11 @@ on('btnPause', () => game.pause());
 on('btnResume', () => game.resume());
 on('btnPauseGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnQuit', () => game.quit());
-on('btnRetry', () => { ui.hide('screenOver'); game.retry(); });
-on('btnHome', () => { ui.hide('screenOver'); game.quit(); });
+// Start the round first, hide the panel second. If starting ever throws,
+// the player is left looking at a button they can press again rather than
+// at an empty field with every screen dismissed.
+on('btnRetry', () => { game.retry(); ui.hide('screenOver'); });
+on('btnHome', () => { game.quit(); ui.hide('screenOver'); });
 
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => { sound.ui(); ui.hide(btn.dataset.close); });
@@ -136,8 +139,16 @@ relayout();
 // The rAF argument is a frame-display timestamp, which does not always track
 // wall clock (headless and heavily throttled tabs drift). Everything else in
 // the game measures with performance.now(), so the loop does too.
+let loopFailed = false;
 function loop() {
-  game.frame(performance.now());
+  // A throw inside frame() used to skip the re-arm below and stop the game
+  // dead on its last drawn frame. Keep the loop alive so the next frame can
+  // recover, and report the first failure rather than a flood of them.
+  try {
+    game.frame(performance.now());
+  } catch (err) {
+    if (!loopFailed) { loopFailed = true; console.error('frame failed', err); }
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
