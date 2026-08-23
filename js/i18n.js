@@ -129,6 +129,22 @@ const STR = {
       copyLog: 'Copy run log',
       copyLogDone: 'Copied!',
     },
+    coach: {
+      nearMiss: {
+        one: 'One cut landed just short of building your streak — clean that up and you clear it. You were only {shortfall} points short.',
+        other: '{n} cuts landed just short of building your streak — clean those up and you clear it. You were only {shortfall} points short.',
+      },
+      weakSpecies: '{species} was your softest cut this round (avg {pct}%) — {detail}.',
+      stingCost: {
+        one: 'One weed graze cost you {lost} points and reset your multiplier.',
+        other: '{n} weed grazes cost you {lost} points, resetting your multiplier each time.',
+      },
+      missedCost: {
+        one: 'One flower wilted before you reached it, resetting your multiplier.',
+        other: '{n} flowers wilted before you reached them, resetting your multiplier each time.',
+      },
+      pace: 'You landed {cuts} clean cuts in {seconds}s — a little more pace next time would close the gap.',
+    },
     hud: {
       score: 'Score', round: 'Round', time: 'Time',
       goal: 'Goal {n}', goalMet: 'Goal met',
@@ -252,6 +268,22 @@ const STR = {
       home: 'Hauptmenü',
       copyLog: 'Rundenprotokoll kopieren',
       copyLogDone: 'Kopiert!',
+    },
+    coach: {
+      nearMiss: {
+        one: 'Ein Schnitt hat es knapp nicht geschafft, deine Serie aufzubauen — behebe das, und du schaffst die Runde. Es fehlten nur {shortfall} Punkte.',
+        other: '{n} Schnitte haben es knapp nicht geschafft, deine Serie aufzubauen — behebe das, und du schaffst die Runde. Es fehlten nur {shortfall} Punkte.',
+      },
+      weakSpecies: '{species} war dein schwächster Schnitt in dieser Runde (Ø {pct}%) — {detail}.',
+      stingCost: {
+        one: 'Ein Brennnessel-Streifer hat dich {lost} Punkte gekostet und deinen Multiplikator zurückgesetzt.',
+        other: '{n} Brennnessel-Streifer haben dich {lost} Punkte gekostet und deinen Multiplikator jedes Mal zurückgesetzt.',
+      },
+      missedCost: {
+        one: 'Eine Blume ist verwelkt, bevor du sie erreicht hast, und hat deinen Multiplikator zurückgesetzt.',
+        other: '{n} Blumen sind verwelkt, bevor du sie erreicht hast, und haben deinen Multiplikator jedes Mal zurückgesetzt.',
+      },
+      pace: 'Du hast {cuts} saubere Schnitte in {seconds}s geschafft — etwas mehr Tempo würde beim nächsten Mal reichen.',
     },
     hud: {
       score: 'Punkte', round: 'Runde', time: 'Zeit',

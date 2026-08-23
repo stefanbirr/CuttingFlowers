@@ -9,6 +9,7 @@ import { Scene } from './scene.js';
 import { setLight } from './draw.js';
 import { Particles } from './particles.js';
 import { Bouquet, scoreBouquet } from './bouquet.js';
+import { coachTips } from './coach.js';
 import { sound } from './audio.js';
 import { store } from './storage.js';
 import { ui } from './ui.js';
@@ -433,6 +434,7 @@ export class Game {
       angleTarget: cut.angle,
       speedMeasured: +rec.speed.toFixed(2),
       speedBand: cut.speed,
+      pattern: cut.pattern,
     });
 
     const piece = rec.piece;
@@ -730,6 +732,7 @@ export class Game {
     ui.showOver({
       title: newBest ? t('over.record') : t('over.runOver'),
       reason, score: this.total, round: this.round, best: Math.max(best, this.total), newBest,
+      tips: coachTips(this.roundLog),
     });
   }
 

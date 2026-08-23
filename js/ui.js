@@ -35,6 +35,7 @@ export const ui = {
     overReason: $('overReason'),
     finalScore: $('finalScore'),
     finalSub: $('finalSub'),
+    overCoach: $('overCoach'),
     pickGrid: $('pickGrid'),
     levelGrid: $('levelGrid'),
     hudPractice: $('hudPractice'),
@@ -291,13 +292,14 @@ export const ui = {
     this.show('screenBouquet');
   },
 
-  showOver({ title, reason, score, round, best, newBest }) {
+  showOver({ title, reason, score, round, best, newBest, tips = [] }) {
     this.el.overTitle.textContent = title;
     this.el.overReason.textContent = reason;
     this.el.finalScore.textContent = fmtNum(score);
     this.el.finalSub.textContent = newBest
       ? t('over.newBest')
       : t('over.reachedRound', { round, best: fmtNum(best) });
+    this.el.overCoach.innerHTML = tips.map((tip) => `<p class="coach-tip">${tip}</p>`).join('');
     this.show('screenOver');
   },
 };

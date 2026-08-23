@@ -440,6 +440,19 @@ html, body {
 .final-sub { font-size: 12px; color: var(--ink-dim); margin-bottom: 14px; }
 .over-reason { color: #d8e6d5; font-size: 14px; margin: 0 0 10px; }
 
+.coach-tips { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; text-align: left; }
+.coach-tip {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #eaf5e7;
+  background: rgba(15, 26, 17, .78);
+  border-left: 3px solid var(--leaf-bright);
+  border-radius: 0 8px 8px 0;
+  animation: slideIn .3s ease both;
+}
+
 /* Advice, not a wall: landscape still plays, it is just tighter. */
 .rotate-note {
   z-index: 40;
