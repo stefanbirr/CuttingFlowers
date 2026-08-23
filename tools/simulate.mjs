@@ -42,6 +42,7 @@ function parseArgs(argv) {
     seed: 1000,
     json: false,
     quiet: false,
+    cfg: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -50,6 +51,7 @@ function parseArgs(argv) {
     else if (a === '--skill') out.skill = nums(argv[++i]);
     else if (a === '--trials') out.trials = Number(argv[++i]);
     else if (a === '--seed') out.seed = Number(argv[++i]);
+    else if (a === '--cfg') out.cfg = JSON.parse(argv[++i]);
     else if (a === '--json') out.json = true;
     else if (a === '--quiet') out.quiet = true;
   }
@@ -94,6 +96,46 @@ function median(a) {
 }
 const pct = (v) => `${(v * 100).toFixed(0)}%`;
 
+/* Does skill decide the round, or does the draw?
+
+   `skillShare` is eta-squared: of all the variation in scores across every
+   run of a round, the fraction explained by which bot played rather than
+   by which seed it drew. Above 0.5 means skill is the bigger factor; the
+   closer to 1, the more the game rewards the player over the shuffle.
+
+   `ordered` pairs runs by seed and asks how often the better bot actually
+   beat the worse one on the same starting field. It is the blunter, more
+   human reading of the same question. */
+function analyseSkillVsLuck(cells) {
+  const all = [];
+  for (const c of cells) for (const r of c.runs) all.push(r.pct);
+  if (all.length < 2) return { skillShare: 0, ordered: 0 };
+
+  const grand = mean(all);
+  const totalSS = all.reduce((s, v) => s + (v - grand) ** 2, 0);
+  let betweenSS = 0;
+  for (const c of cells) {
+    const m = mean(c.runs.map((r) => r.pct));
+    betweenSS += c.runs.length * (m - grand) ** 2;
+  }
+
+  const ladder = [...cells].sort((a, b) => a.skill - b.skill);
+  let ok = 0, pairs = 0;
+  for (let i = 1; i < ladder.length; i++) {
+    const lower = new Map(ladder[i - 1].runs.map((r) => [r.seed, r.pct]));
+    for (const hi of ladder[i].runs) {
+      if (!lower.has(hi.seed)) continue;
+      pairs++;
+      if (hi.pct > lower.get(hi.seed)) ok++;
+    }
+  }
+
+  return {
+    skillShare: totalSS > 0 ? betweenSS / totalSS : 0,
+    ordered: pairs ? ok / pairs : 0,
+  };
+}
+
 /* ── Main ─────────────────────────────────────────────────────────── */
 
 const args = parseArgs(process.argv.slice(2));
@@ -121,14 +163,14 @@ try {
     for (const round of args.rounds) {
       // The whole batch for one cell runs inside a single evaluate: no
       // per-frame round trip to Node, which is what made the old harness slow.
-      const runs = await page.evaluate(async ({ round, skill, trials, seed }) => {
+      const runs = await page.evaluate(async ({ round, skill, trials, seed, cfg }) => {
         const { runRound } = await import('/tools/bot.js');
         const out = [];
         for (let i = 0; i < trials; i++) {
-          out.push(runRound(window.game, { round, skill, seed: seed + i }));
+          out.push(runRound(window.game, { round, skill, seed: seed + i, cfg }));
         }
         return out;
-      }, { round, skill, trials: args.trials, seed: args.seed });
+      }, { round, skill, trials: args.trials, seed: args.seed, cfg: args.cfg });
 
       const pcts = runs.map((r) => r.pct);
       const cleared = runs.filter((r) => r.cleared).length;
@@ -156,6 +198,8 @@ try {
     const head = ['skill', 'round', 'quota', 'clear', 'median', 'mean', 'min', 'max', 'cuts', 'qual', 'stk'];
     const w = [6, 6, 7, 6, 7, 6, 5, 5, 6, 6, 5];
     const line = (cells) => cells.map((c, i) => String(c).padStart(w[i])).join(' ');
+    const w2 = [6, 10, 8];
+    const line2 = (cells) => cells.map((c, i) => String(c).padStart(w2[i])).join(' ');
     console.log(line(head));
     console.log(w.map((n) => '-'.repeat(n)).join(' '));
     let lastSkill = null;
@@ -168,6 +212,18 @@ try {
         r.meanCuts.toFixed(1), r.meanQuality.toFixed(2), r.meanStrikes.toFixed(1),
       ]));
     }
+    if (args.skill.length > 1) {
+      console.log();
+      console.log('skill vs luck   (skillShare > 50% means skill decides the round)');
+      console.log(line2(['round', 'skillShare', 'ordered']));
+      console.log('------ ---------- --------');
+      for (const round of args.rounds) {
+        const cells = rows.filter((r) => r.round === round);
+        const a = analyseSkillVsLuck(cells);
+        console.log(line2([round, pct(a.skillShare), pct(a.ordered)]));
+      }
+    }
+
     const totalRuns = rows.reduce((n, r) => n + r.runs.length, 0);
     console.log();
     console.log(`${totalRuns} rounds simulated in ${elapsed.toFixed(1)}s `

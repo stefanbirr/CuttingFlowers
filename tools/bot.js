@@ -357,25 +357,45 @@ export function runRound(game, {
   render = false,
   fps = 60,
   maxSeconds = 120,
+  cfg = null,
 } = {}) {
   const realRandom = Math.random;
   const realNow = performance.now;
   const realRender = game.render;
 
+  // Tuning values can be patched for the length of one run, so a sweep is
+  // a loop rather than an edit-and-rerun. One level deep is enough for the
+  // things worth sweeping (spawnBag, wind, quota…) and keeps the restore
+  // honest — anything deeper would need a real clone to put back.
+  const cfgSaved = [];
+  if (cfg) {
+    for (const [k, v] of Object.entries(cfg)) {
+      cfgSaved.push([k, CFG[k]]);
+      CFG[k] = (v && typeof v === 'object' && !Array.isArray(v))
+        ? { ...CFG[k], ...v }
+        : v;
+    }
+  }
+
   const dt = 1000 / fps;
   let vnow = 0;
   const qualities = [];
   const grades = {};
+  const mix = {};          // what the field actually dealt this run
   let spawned = 0;
 
   const realFinalize = game.finalize;
   const realSpawn = game.spawn;
 
   try {
+    // Two independent streams. Everything random in the game funnels
+    // through Math.random — spawn choice, position, palettes, wind phase —
+    // so seeding that is what makes a run reproducible. The bot draws from
+    // its own stream instead of sharing, or a change in how many decisions
+    // it happens to make would shift the world's draws too, and two skill
+    // levels on the same seed would no longer start from the same field.
     const rng = mulberry32(seed);
-    // Everything random in the game funnels through Math.random — spawn
-    // choice, position, palettes, wind phase — so seeding it here is what
-    // makes a whole run reproducible.
+    const botRng = mulberry32((Math.imul(seed, 2654435761) ^ 0x9E3779B9) >>> 0);
     Math.random = rng;
     performance.now = () => vnow;
     if (!render) game.render = () => {};
@@ -391,7 +411,11 @@ export function runRound(game, {
     game.spawn = function patched(...args) {
       const before = this.flowers.length;
       realSpawn.apply(this, args);
-      if (this.flowers.length > before) spawned++;
+      if (this.flowers.length > before) {
+        spawned++;
+        const id = this.flowers[this.flowers.length - 1].species.id;
+        mix[id] = (mix[id] || 0) + 1;
+      }
     };
 
     game.startRun(round);
@@ -412,7 +436,7 @@ export function runRound(game, {
     // every later draw and quietly desync an otherwise identical run.
     game.fx.seedPollen(Math.round(22 * game.view.scale));
 
-    const bot = new Bot(game, { skill, rng, dt });
+    const bot = new Bot(game, { skill, rng: botRng, dt });
 
     const limit = maxSeconds * 1000;
     // Run past the whistle: endRound leaves the game 'binding', and it is
@@ -437,6 +461,7 @@ export function runRound(game, {
       cuts: game.cutCount,
       strikes: game.strikes,
       spawned,
+      mix,
       swipes: bot.stats.swipes,
       abandoned: bot.stats.abandoned,
       avgQuality: +avg.toFixed(3),
@@ -450,5 +475,6 @@ export function runRound(game, {
     game.render = realRender;
     game.finalize = realFinalize;
     game.spawn = realSpawn;
+    for (const [k, v] of cfgSaved) CFG[k] = v;
   }
 }

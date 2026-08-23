@@ -1,7 +1,7 @@
 /* Game state machine: spawning, slicing, grading, rounds and bouquets. */
 
 import { CFG, quotaForRound } from './config.js';
-import { poolForRound, pickSpecies } from './species.js';
+import { SpeciesBag } from './species.js';
 import { Flower } from './flower.js';
 import { Blade, patternScore, crossScore } from './gesture.js';
 import { gradeCut, weakestPart } from './scoring.js';
@@ -36,7 +36,7 @@ export class Game {
     this.round = 1;
     this.last = 0;
     this.time = 0;
-    this.pool = poolForRound(3);
+    this.pool = new SpeciesBag(3);
     this.spawnIn = 300;
 
     this.resize();
@@ -109,7 +109,7 @@ export class Game {
     this.timeLeft = CFG.roundSeconds * 1000;
     this.spawnIn = 500;
     this.quota = quotaForRound(this.round);
-    this.pool = poolForRound(this.round);
+    this.pool = new SpeciesBag(this.round);
     this.lastTickSecond = 99;
 
     this.scene.setRound(this.round);
@@ -160,7 +160,8 @@ export class Game {
 
   spawnGap() {
     const g = CFG.baseSpawnGap * Math.pow(CFG.spawnGapDecay, this.round - 1);
-    return Math.max(CFG.spawnGapFloor, g) * rand(1.25, 0.75);
+    const j = CFG.spawnGapJitter;
+    return Math.max(CFG.spawnGapFloor, g) * rand(1 + j, 1 - j);
   }
 
   /** How many stems may stand at once, easing up a little each round. */
@@ -189,9 +190,11 @@ export class Game {
 
     if (!ambient && alive.length >= this.maxAliveForRound()) return;
 
-    const species = ambient
-      ? pickSpecies(this.pool.filter((p) => p.species.kind !== 'hazard'))
-      : pickSpecies(this.pool);
+    const hazardsUp = alive.reduce((n, f) => n + (f.isHazard ? 1 : 0), 0);
+
+    const species = this.pool.draw(Math.random, {
+      skipHazards: ambient || hazardsUp >= CFG.maxHazardsAlive,
+    });
     // Head radius accounts for the oversized bloom art (CFG.headScale), not
     // just the stem's footprint, so canopies actually clear each other.
     const headR = species.head.size * this.view.scale * CFG.headScale * 0.5;
@@ -210,8 +213,19 @@ export class Game {
     // this tick out rather than cram two canopies together.
     if (!ambient && alive.length > 0 && bestGap < clearance) return;
 
+    // Recorded only now that it is really in the ground — see SpeciesBag.draw.
+    this.pool.sprouted(species);
     this.flowers.push(new Flower(species, best, this.view, ambient ? 1 : this.round));
     if (!ambient) sound.sprout();
+  }
+
+  /** Knock the multiplier back after a botched cut or a stem left to
+      wither. Costs ground rather than everything — see CFG.comboBreakLoss.
+      The streak is kept in step with the multiplier so building resumes
+      from where it dropped to, not from scratch. */
+  breakCombo() {
+    this.combo = Math.max(1, this.combo - CFG.comboBreakLoss);
+    this.streak = Math.max(0, Math.round((this.combo - 1) / CFG.comboStep));
   }
 
   /** Where the "+points" popup lands: a fixed height near the top of the
@@ -354,8 +368,7 @@ export class Game {
       this.combo = Math.min(CFG.comboMax, 1 + this.streak * CFG.comboStep);
       if (this.streak > 1) sound.combo(this.streak);
     } else if (q < CFG.comboBreakBelow) {
-      this.streak = 0;
-      this.combo = 1;
+      this.breakCombo();
     }
 
     const pts = Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
@@ -464,9 +477,8 @@ export class Game {
 
         if (f.state === 'missed') {
           f.state = 'gone';
-          this.streak = 0;
-          this.combo = 1;
-          ui.setCombo(1);
+          this.breakCombo();
+          ui.setCombo(this.combo);
           const tip = f.p2;
           this.fx.burst(tip.x, tip.y, [...f.palette, '#8a7a4b'], 7, { power: 0.4 });
           this.fx.label(tip.x, tip.y, t('label.wilted'), '#c8b48a', { size: 13, ttl: 750 });

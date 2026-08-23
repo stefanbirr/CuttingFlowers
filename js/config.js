@@ -13,6 +13,11 @@ export const CFG = {
   baseSpawnGap: 1150,     // ms between sprouts on round 1
   spawnGapFloor: 460,     // fastest we ever spawn
   spawnGapDecay: 0.90,    // multiplied per round
+  /* Random spread on each gap, as a fraction either side. Some jitter keeps
+     the field from ticking like a metronome; too much and how many stems a
+     round even offers becomes its own lottery, on top of everything else
+     the player is already being asked to handle. */
+  spawnGapJitter: 0.25,
   maxAlive: 2,            // cap on round 1, so blades have room to work
   maxAliveStep: 3,        // rounds between each +1 to the cap
   maxAliveCap: 4,         // cap never climbs past this
@@ -79,6 +84,35 @@ export const CFG = {
   slowmoMs: 190,
   slowmoScale: 0.34,
 
+  /* How the field decides what to sprout next.
+
+     Drawing each spawn independently lets the same species turn up three
+     or four times in a row, and a round that happens to deal a run of the
+     narrow-tolerance ones is simply a harder round through no fault of the
+     player. That cuts against the one rule this game is tuned around: a
+     better player should score better (see DESIGN.md).
+
+     So a species that has just appeared has its weight knocked down and
+     then recovers over the following spawns. Never to zero — the field
+     should still feel like it is being dealt, not cycled through a fixed
+     rota — but enough that the mix a round hands you stays close to the
+     mix it is supposed to. */
+  spawnBag: {
+    repeat: 0.30,     // weight multiplier applied to a species right after it spawns
+    recovery: 0.34,   // fraction of the way back to full weight, per later spawn
+  },
+
+  /* How many weeds may stand at once. A wall of nettles across a field
+     that only holds three or four stems is a round the player cannot do
+     much with, however well they cut. Rare, but cheap to rule out.
+
+     (Freeing the slot outright was tried and measured: letting weeds stand
+     *alongside* the harvest rather than in place of it moved the average
+     round by well under a tenth of a cut, so weeds are not the throughput
+     drain they look like. This cap is here for the pathological case, not
+     as a fairness lever.) */
+  maxHazardsAlive: 1,
+
   /* Practice: one chosen flower at a time, dead centre, no clock. */
   practiceRespawn: 700,   // ms of calm after a cut before the next sprouts
 
@@ -140,6 +174,13 @@ export const CFG = {
   comboMax: 3.0,
   comboKeepAbove: 0.62,   // quality needed to build the combo
   comboBreakBelow: 0.40,  // quality that snaps it
+  /* What a bad cut costs off the multiplier. A full wipe made one slip
+     decide a run: from 3x it took a dozen clean cuts to climb back, so a
+     round's score turned on where the mistakes happened to fall rather
+     than on how many there were. Losing ground still stings without
+     erasing everything earned before it. Set at or above comboMax - 1 to
+     restore the old all-or-nothing behaviour. */
+  comboBreakLoss: 1.0,
 };
 
 /** The points needed to clear a round — two growth rates spliced at

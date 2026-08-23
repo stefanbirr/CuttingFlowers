@@ -1,0 +1,119 @@
+# Bloom & Blade — design northstar
+
+## Skill has to matter more than luck
+
+**A better player must score better. When a round goes badly it should be
+because of something the player did, not something the field dealt them.**
+
+This is the rule everything else is tuned around. Where a change would make
+the game prettier, or more varied, or more surprising, but weaker on this,
+this wins.
+
+It does not mean removing randomness. A field that dealt the same hand every
+round would be dead. It means randomness sets the *texture* of a round, never
+its *outcome* — the draw decides what the next minute feels like, the player
+decides how it goes.
+
+### Why it needed writing down
+
+The game drifted away from this once already, quietly, in several places at
+once, and none of it looked like a bug:
+
+- Species were worth different points, so *which* flowers you drew mattered
+  as much as how well you cut them.
+- Spawns were drawn independently, so one round in six dealt a run of the
+  fussy species and was simply harder, for no reason the player could see.
+- The round quota kept compounding at 26% a round after the field had stopped
+  getting more generous, so late rounds asked for a rate no player could
+  supply.
+- A single bad cut wiped the whole combo multiplier, so *where* a mistake
+  landed in a round mattered more than how many you made.
+
+Each was defensible on its own. Together they meant a round's outcome was
+mostly decided by things outside the player's hands.
+
+### How it is enforced now
+
+- **Every cuttable stem is worth the same** (`CFG.cutBase`). Technique
+  decides the score; the species decides only how hard that technique is.
+- **Spawning has a memory** (`SpeciesBag`, `CFG.spawnBag`). A species that
+  just appeared is unlikely to appear again straight away, and recovers over
+  the following spawns. Never impossible — the field is a loaded shuffle, not
+  a rota — but a round's mix stays near the mix it is meant to be.
+- **The quota tracks what the field can actually supply**
+  (`quotaForRound`). It follows the growth of `maxAlive` and the spawn rate,
+  and flattens when they do.
+- **A bad cut costs ground, not everything** (`CFG.comboBreakLoss`). Losing a
+  streak still stings without erasing a dozen good cuts before it.
+
+## How to check it
+
+Two tools, both driving the real game through the real blade. Rounds run on a
+virtual clock, so a full sweep is seconds, not hours.
+
+```sh
+# Skill ladder + the headline numbers.
+node tools/simulate.mjs --rounds 5,8,10 --skill 0.25,0.5,0.75,1.0 --trials 60
+
+# Does the species draw predict the score, holding skill fixed?
+node tools/mixcheck.mjs --rounds 5,8,10 --skill 0.5,0.75 --trials 300
+
+# Try a tuning change without editing anything.
+node tools/simulate.mjs --rounds 8 --skill 0.5,1.0 --cfg '{"comboBreakLoss":0.6}'
+```
+
+`simulate.mjs` reports two numbers per round:
+
+- **skillShare** — of all the variation in scores, the share explained by
+  *which bot played* rather than *which seed it drew*. Above 50% means skill
+  is the larger factor.
+- **ordered** — how often the better bot actually beat the worse one on the
+  same starting field. The blunter reading of the same question.
+
+`mixcheck.mjs` answers the narrower question the northstar names directly:
+with skill held fixed, how well does the species mix predict the score? It
+fits per-species difficulty on half the runs and measures on the other half —
+fitting and testing on the same batch hands eleven free parameters to a few
+hundred points and manufactures a correlation out of noise.
+
+### Where it stands
+
+Measured over 720 simulated rounds at four skill levels:
+
+| round | skillShare | ordered (adjacent) | ordered (0.25 vs 1.0) |
+|------:|-----------:|-------------------:|----------------------:|
+|     5 |        49% |                72% |                   98% |
+|     8 |        64% |                77% |                  100% |
+|    10 |        66% |                78% |                  100% |
+
+A clearly better player wins essentially always. Between neighbouring skill
+levels a quarter-step apart it is about three times in four, which is roughly
+what that gap should buy.
+
+Flower difficulty specifically — the thing the northstar names — correlates
+with the score at r ≈ 0.1–0.2, against skill's 0.5–0.66. Skill is several
+times the larger factor, which is the bar.
+
+### Two things worth knowing before you read those numbers
+
+**A round ends the moment its quota is met.** So on a round a player clears
+comfortably, extra skill has nowhere to go in the score and `skillShare`
+collapses — round 3 reads 29%, which looks alarming and is not. Skill is
+still there, expressed as speed: with both bots clearing, the better one
+clears faster about three times in four (36.1s → 31.0s). Judge easy rounds on
+time, not points.
+
+**Low-skill runs are swingy by nature**, which drags `skillShare` down from
+the bottom end. A sloppy player striking out at ten seconds and a sloppy
+player surviving to the whistle are far apart, and that gap is mostly theirs.
+Consistency is part of what skill buys.
+
+### A finding this contradicts, on purpose
+
+Cutting slightly *before* the bloom window costs about 7% of a cut's quality
+(`CFG.timingGate` is forgiving) but frees a spawn slot sooner — and late
+rounds are capped by the field's throughput, not the blade. So rushing is
+measurably better than waiting for the perfect moment, which undercuts the
+"wait for the bloom" mechanic the ring guide teaches. It is not a fairness
+problem, so it is not covered by the rule above, but it is worth fixing when
+the timing window is next revisited.

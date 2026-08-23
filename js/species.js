@@ -10,6 +10,8 @@
    `cut.pattern` — 'straight' | 'arc' | 'zigzag' | 'cross'.
 */
 
+import { CFG } from './config.js';
+
 export const SPECIES = [
   /* ── Round 1: two flowers, and the first weed ─────────────────────── */
   {
@@ -196,12 +198,64 @@ export function poolForRound(round) {
   }));
 }
 
-export function pickSpecies(pool, rng = Math.random) {
-  const total = pool.reduce((n, p) => n + p.weight, 0);
-  let r = rng() * total;
-  for (const p of pool) {
-    r -= p.weight;
-    if (r <= 0) return p.species;
+/**
+ * What the field sprouts next, with a memory.
+ *
+ * Straight weighted sampling has no memory, so it will happily deal the
+ * same species four times running — and a round that draws a run of the
+ * fussy ones is harder than one that draws a run of the forgiving ones,
+ * for reasons the player had no hand in. This keeps a per-species recency
+ * multiplier: whatever just sprouted has its weight knocked down, and it
+ * climbs back as other things sprout instead.
+ *
+ * The weight is never zero. A species that just appeared can appear again
+ * — it is a loaded shuffle, not a rota — it is simply unlikely to, which
+ * is enough to keep a round's mix near the mix it is meant to be.
+ */
+export class SpeciesBag {
+  constructor(round) {
+    this.entries = poolForRound(round);
+    this.rested = new Map();   // species id -> 0..1, 1 = back to full weight
   }
-  return pool[pool.length - 1].species;
+
+  /**
+   * Choose what to sprout next. Deliberately does not update the memory:
+   * the spawner may still reject this pick for want of clear ground, and a
+   * species must not be pushed down the order for a sprout that never
+   * happened — that would quietly bias the field against the wide-canopy
+   * species, which get turned away the most. Call sprouted() once the stem
+   * is actually in the ground.
+   */
+  draw(rng = Math.random, { skipHazards = false } = {}) {
+    const pool = skipHazards
+      ? this.entries.filter((e) => e.species.kind !== 'hazard')
+      : this.entries;
+    if (!pool.length) return null;
+
+    let total = 0;
+    const weights = pool.map((e) => {
+      const w = e.weight * (this.rested.get(e.species.id) ?? 1);
+      total += w;
+      return w;
+    });
+
+    let r = rng() * total;
+    for (let i = 0; i < pool.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return pool[i].species;
+    }
+    return pool[pool.length - 1].species;
+  }
+
+  /** Everything rests a little; whatever just grew drops back. */
+  sprouted(species) {
+    const { repeat, recovery } = CFG.spawnBag;
+    for (const e of this.entries) {
+      const id = e.species.id;
+      const cur = this.rested.get(id) ?? 1;
+      if (cur < 1) this.rested.set(id, cur + (1 - cur) * recovery);
+    }
+    const id = species.id;
+    this.rested.set(id, (this.rested.get(id) ?? 1) * repeat);
+  }
 }
