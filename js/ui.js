@@ -261,6 +261,7 @@ export const ui = {
     set('btnRetry', t('over.retry'));
     set('btnHome', t('over.home'));
     set('btnCopyLog', t('over.copyLog'));
+    set('btnCopyLogBouquet', t('over.copyLog'));
     set('btnReplay', t('over.replay'));
     set('replayTitle', t('replay.title'));
     set('replayLegendIdeal', t('replay.legendIdeal'));
