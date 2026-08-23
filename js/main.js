@@ -58,6 +58,31 @@ on('btnQuit', () => game.quit());
 on('btnRetry', () => { game.retry(); ui.hide('screenOver'); });
 on('btnHome', () => { game.quit(); ui.hide('screenOver'); });
 
+const copyLogBtn = document.getElementById('btnCopyLog');
+on('btnCopyLog', async () => {
+  const text = game.buildLogText();
+  let ok = true;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard API can be blocked (older iOS Safari, some in-app
+    // browsers); a hidden textarea + execCommand still works there.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch { ok = false; }
+  }
+  copyLogBtn.textContent = t(ok ? 'over.copyLogDone' : 'over.copyLog');
+  copyLogBtn.disabled = ok;
+  setTimeout(() => { copyLogBtn.textContent = t('over.copyLog'); copyLogBtn.disabled = false; }, 1600);
+});
+
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => { sound.ui(); ui.hide(btn.dataset.close); });
 }

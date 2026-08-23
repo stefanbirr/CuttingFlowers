@@ -73,6 +73,9 @@ export class Game {
     this.mode = 'run';
     this.total = 0;
     this.round = round;
+    // Every round played this run, for buildLogText() — reset here rather
+    // than in startRound() so it survives from one round into the next.
+    this.runLog = { rounds: [] };
     this.startRound();
   }
 
@@ -118,6 +121,10 @@ export class Game {
     this.quota = quotaForRound(this.round);
     this.pool = new SpeciesBag(this.round);
     this.lastTickSecond = 99;
+
+    // Practice has no quota to diagnose against, so it keeps no log.
+    this.roundStartTime = this.time;
+    this.roundLog = this.mode === 'run' ? { round: this.round, quota: this.quota, events: [] } : null;
 
     this.scene.setRound(this.round);
     this.blade.enabled = true;
@@ -245,6 +252,21 @@ export class Game {
     this.streak = Math.max(0, Math.round((this.combo - 1) / CFG.comboStep));
   }
 
+  /** One line in the current round's diagnostic log (see buildLogText).
+      A no-op outside a scored run — see startRound. Records state *after*
+      the event, which is what a reader wants: what did this leave me with. */
+  logEvent(type, extra = {}) {
+    if (!this.roundLog) return;
+    this.roundLog.events.push({
+      t: +((this.time - this.roundStartTime) / 1000).toFixed(1),
+      type,
+      total: this.roundPoints,
+      combo: +this.combo.toFixed(2),
+      streak: this.streak,
+      ...extra,
+    });
+  }
+
   /** Where the "+points" popup lands: a fixed height near the top of the
       screen, but still under the x you cut at so it reads as a response
       to that specific action. Clamped off the edges for centred text. */
@@ -332,6 +354,7 @@ export class Game {
     const pts = -CFG.stingPenalty;
     this.roundPoints = Math.max(0, this.roundPoints + pts);
     this.stungCount = (this.stungCount || 0) + 1;
+    this.logEvent('sting', { species: f.species.id, pts, strikes: this.strikes });
 
     this.fx.burst(hit.x, hit.y, ['#4b7d42', '#96b06f', '#2f4a2b'], 16, { power: 1.1 });
     const fp = this.feedbackPos(hit.x);
@@ -391,6 +414,7 @@ export class Game {
     const pts = Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
     this.roundPoints += pts;
     this.cutCount++;
+    this.logEvent('cut', { species: f.species.id, quality: +q.toFixed(2), grade: res.grade.key, pts });
 
     const piece = rec.piece;
     piece.quality = q;
@@ -495,6 +519,7 @@ export class Game {
         if (f.state === 'missed') {
           f.state = 'gone';
           this.breakCombo();
+          this.logEvent('missed', { species: f.species.id });
           ui.setCombo(this.combo);
           const tip = f.p2;
           this.fx.burst(tip.x, tip.y, [...f.palette, '#8a7a4b'], 7, { power: 0.4 });
@@ -583,6 +608,53 @@ export class Game {
 
     this.cleared = this.roundPoints >= this.quota && this.endReason !== 'stung';
     this.panelShown = false;
+
+    if (this.roundLog) {
+      this.roundLog.summary = {
+        cleared: this.cleared,
+        endReason: this.endReason,
+        points: this.roundPoints,
+        cuts: this.cutCount,
+        strikes: this.strikes,
+        finalCombo: +this.combo.toFixed(2),
+        secondsUsed: +((this.time - this.roundStartTime) / 1000).toFixed(1),
+      };
+      this.runLog.rounds.push(this.roundLog);
+    }
+  }
+
+  /** A plain-text account of every round played this run — cut by cut, in
+      the order it happened — meant to be pasted somewhere for someone else
+      to read, not shown in-game. Deliberately not localized: it is a
+      diagnostic document, not UI. */
+  buildLogText() {
+    const lines = [`Bloom & Blade run log — ${new Date().toLocaleString()}`];
+    for (const r of this.runLog?.rounds || []) {
+      const s = r.summary;
+      const pct = r.quota ? Math.round((100 * s.points) / r.quota) : 0;
+      lines.push('');
+      lines.push(
+        `Round ${r.round} · goal ${fmtNum(r.quota)} · `
+        + `${s.cleared ? 'CLEARED' : `FAILED (${s.endReason})`} · `
+        + `${fmtNum(s.points)}/${fmtNum(r.quota)} (${pct}%) · ${s.cuts} cuts · `
+        + `${s.strikes} sting${s.strikes === 1 ? '' : 's'} · final combo ${s.finalCombo} · `
+        + `${s.secondsUsed}s used`,
+      );
+      for (const e of r.events) {
+        const at = `  t=${e.t.toFixed(1)}s`.padEnd(10);
+        const state = `combo=${e.combo.toFixed(2)} streak=${e.streak}  total=${fmtNum(e.total)}`;
+        if (e.type === 'cut') {
+          lines.push(`${at}CUT    ${e.species.padEnd(11)} q=${e.quality.toFixed(2)} ${e.grade.padEnd(10)} +${e.pts} pts  ${state}`);
+        } else if (e.type === 'sting') {
+          lines.push(`${at}STING  ${e.species.padEnd(11)} ${' '.repeat(21)}${e.pts} pts  ${state}`);
+        } else if (e.type === 'missed') {
+          lines.push(`${at}MISSED ${e.species.padEnd(11)} withered, never cut${' '.repeat(6)}${state}`);
+        }
+      }
+    }
+    lines.push('');
+    lines.push(`Run total: ${fmtNum(this.total)} over ${this.runLog?.rounds.length || 0} round(s)`);
+    return lines.join('\n');
   }
 
   /** Reveal the results once the arrangement has actually finished building. */

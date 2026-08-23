@@ -8,7 +8,7 @@
    that did not exist yet. Serving strictly from the current generation
    makes that impossible — updates arrive by bumping VERSION, all at once. */
 
-const VERSION = 'bloom-blade-v21';
+const VERSION = 'bloom-blade-v22';
 const SHELL = [
   '.',
   'index.html',

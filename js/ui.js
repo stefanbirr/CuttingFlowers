@@ -250,6 +250,7 @@ export const ui = {
     set('finalScoreLabel', t('over.total'));
     set('btnRetry', t('over.retry'));
     set('btnHome', t('over.home'));
+    set('btnCopyLog', t('over.copyLog'));
 
     set('rotateText', t('rotate'));
 

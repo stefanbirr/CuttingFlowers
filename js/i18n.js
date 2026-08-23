@@ -126,6 +126,8 @@ const STR = {
       reachedRound: 'Reached round {round} · best {best}',
       retry: 'Harvest again',
       home: 'Main menu',
+      copyLog: 'Copy run log',
+      copyLogDone: 'Copied!',
     },
     hud: {
       score: 'Score', round: 'Round', time: 'Time',
@@ -248,6 +250,8 @@ const STR = {
       reachedRound: 'Runde {round} erreicht · Rekord {best}',
       retry: 'Erneut ernten',
       home: 'Hauptmenü',
+      copyLog: 'Rundenprotokoll kopieren',
+      copyLogDone: 'Kopiert!',
     },
     hud: {
       score: 'Punkte', round: 'Runde', time: 'Zeit',
