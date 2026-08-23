@@ -61,7 +61,7 @@ export const CFG = {
      quota is a hard pass/fail and spawn luck (species mix, layout) varies
      run to run — the margin is there so an unlucky round is still winnable
      on skill, not just a lucky one. */
-  quotaBase: 950,
+  quotaBase: 880,
   quotaGrowth: 1.26,
   quotaGrowthLate: 1.08,
   quotaPlateauRound: 7,   // the round maxAlive first reaches maxAliveCap
@@ -151,13 +151,15 @@ export const CFG = {
   crossWindow: 900,       // ms allowed between the two strokes of a cross-cut
   minSliceSpeed: 0.25,    // screen-heights/s below which the blade does not bite
 
-  /* Speed bands, in screen-heights per second. Widened from the original
-     tuning — real thumbs on real glass land off-centre in the band far
-     more often than a mouse-driven test ever does. */
+  /* Speed bands, in screen-heights per second. Two of them, not three: a
+     middle band asks the player to tell "steady" from its neighbours by
+     feel, which no thumb can do reliably, so it read as noise rather than
+     as technique. Draw or whip — that much you can aim for. The bands are
+     wide and the old middle ground is split between them, so anything
+     genuinely in between still earns most of the credit either way. */
   speeds: {
-    slow:   { min: 0.14, lo: 0.36, hi: 1.35, max: 2.15 },
-    steady: { min: 0.55, lo: 1.10, hi: 2.95, max: 4.20 },
-    fast:   { min: 1.55, lo: 2.55, hi: 7.40, max: 10.40 },
+    slow: { min: 0.12, lo: 0.32, hi: 1.60, max: 2.70 },
+    fast: { min: 1.70, lo: 2.60, hi: 7.60, max: 10.60 },
   },
 
   /* How much each part of the *technique* counts. Re-normalised when a

@@ -110,19 +110,21 @@ hundred points and manufactures a correlation out of noise.
 
 Measured over 720 simulated rounds at four skill levels:
 
-| round | skillShare | ordered (adjacent) | ordered (0.25 vs 1.0) |
-|------:|-----------:|-------------------:|----------------------:|
-|     5 |        49% |                72% |                   98% |
-|     8 |        64% |                77% |                  100% |
-|    10 |        66% |                78% |                  100% |
+| round | skillShare | ordered (adjacent) |
+|------:|-----------:|-------------------:|
+|     5 |        40% |                76% |
+|     8 |        60% |                78% |
+|    10 |        60% |                78% |
 
 A clearly better player wins essentially always. Between neighbouring skill
 levels a quarter-step apart it is about three times in four, which is roughly
 what that gap should buy.
 
-Flower difficulty specifically — the thing the northstar names — correlates
-with the score at r ≈ 0.1–0.2, against skill's 0.5–0.66. Skill is several
-times the larger factor, which is the bar.
+Unresolved: `mixcheck.mjs` currently reports the species draw correlating with
+the score at r ≈ 0.65–0.88, not the r ≈ 0.1–0.2 an earlier note in this file
+claimed. The same numbers come out of the code from before the two-speed
+change, so it is not a regression — either the tool drifted or the earlier
+figure was read off something else. Worth settling before trusting either.
 
 ### Two things worth knowing before you read those numbers
 
@@ -144,6 +146,23 @@ Cutting slightly *before* the bloom window costs about 7% of a cut's quality
 (`CFG.timingGate` is forgiving) but frees a spawn slot sooner — and late
 rounds are capped by the field's throughput, not the blade. So rushing is
 measurably better than waiting for the perfect moment, which undercuts the
-"wait for the bloom" mechanic the ring guide teaches. It is not a fairness
-problem, so it is not covered by the rule above, but it is worth fixing when
-the timing window is next revisited.
+"wait for the bloom" mechanic. It is not a fairness problem, so it is not
+covered by the rule above, but it is worth fixing when the timing window is
+next revisited.
+
+## Two cut speeds, and what that cost
+
+`CFG.speeds` had three bands. The middle one asked the player to tell "steady"
+from its neighbours by feel, which no thumb does reliably, so it read as noise
+rather than as technique. It is gone; the five species that used it were split
+between slow and fast.
+
+That change is not free. Measured at skill 1.0 over 400 rounds, it dropped the
+top bot's clear rate on rounds 8 and 10 from 65%/68% to 51%/51% — the same
+cuts, slightly less of the round's time budget left over. `quotaBase` came down
+950 → 880 to put it back (63%/60%). If the bands are ever retuned, expect the
+quota to move with them.
+
+One combination is worth avoiding on its own merits: **fast plus zigzag**.
+Sawing is a repeated motion, and asking for it at whip speed cost about five
+points of clear rate by itself. Pampas grass is a slow saw for that reason.

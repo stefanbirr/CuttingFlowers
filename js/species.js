@@ -6,7 +6,7 @@
                    30 = long shallow slant. `null` = angle is not judged.
    `cut.point`   — where on the stem the blade should land: 0 at the soil,
                    1 at the head. Low numbers give long stems for the vase.
-   `cut.speed`   — 'slow' | 'steady' | 'fast' (see CFG.speeds).
+   `cut.speed`   — 'slow' | 'fast' (see CFG.speeds).
    `cut.pattern` — 'straight' | 'arc' | 'zigzag' | 'cross'.
 */
 
@@ -63,8 +63,8 @@ export const SPECIES = [
     weight: 0.85,
     stem: { min: 0.40, max: 0.56, width: 3.6, color: '#3f7f45', lean: 0.30, leaves: 0 },
     head: { type: 'frond', size: 34, pairs: 8, colors: ['#4e9c56', '#6fbf73'] },
-    cut: { angle: 90, angleTol: 26, point: 0.10, pointTol: 0.18, speed: 'steady', pattern: 'straight' },
-    hint: 'Filler green — take it right down at the base for a long frond.',
+    cut: { angle: 90, angleTol: 26, point: 0.10, pointTol: 0.18, speed: 'fast', pattern: 'straight' },
+    hint: 'Filler green — a quick snip right down at the base for a long frond.',
   },
 
   /* ── Round 3: technique starts to matter ─────────────────────────── */
@@ -79,8 +79,8 @@ export const SPECIES = [
     head: { type: 'rosette', size: 30, petals: 11, colors: ['#c62a55', '#e4436f', '#ff7ea3'], alts: [
       ['#d8542f', '#f47b45', '#ffb17a'], ['#c9b8d6', '#efe4f2', '#fdf7fb'], ['#b8143d', '#dc2b57', '#f4708f'],
     ] },
-    cut: { angle: 45, angleTol: 15, point: 0.13, pointTol: 0.13, speed: 'steady', pattern: 'straight' },
-    hint: 'Woody cane: a 45° slant low down so it can drink. Mind the thorns.',
+    cut: { angle: 45, angleTol: 15, point: 0.13, pointTol: 0.13, speed: 'slow', pattern: 'straight' },
+    hint: 'Woody cane: a slow 45° slant low down so it can drink. Mind the thorns.',
   },
 
   /* ── Round 4 ───────────────────────────────────────────────────────── */
@@ -93,8 +93,8 @@ export const SPECIES = [
     weight: 0.8,
     stem: { min: 0.44, max: 0.62, width: 4.2, color: '#7d9c86', lean: 0.26, leaves: 0 },
     head: { type: 'sprig', size: 30, pairs: 7, colors: ['#8fb9a8', '#b6d3c4', '#6f9c86'] },
-    cut: { angle: 45, angleTol: 20, point: 0.16, pointTol: 0.16, speed: 'steady', pattern: 'arc' },
-    hint: 'Bendy silver sprig — sweep the blade through it in a curve.',
+    cut: { angle: 45, angleTol: 20, point: 0.16, pointTol: 0.16, speed: 'slow', pattern: 'arc' },
+    hint: 'Bendy silver sprig — sweep the blade through it in a slow curve.',
   },
 
   /* ── Round 5: force and precision ─────────────────────────────────── */
@@ -135,8 +135,8 @@ export const SPECIES = [
     weight: 0.75,
     stem: { min: 0.56, max: 0.74, width: 4.0, color: '#a89b6d', lean: 0.20, leaves: 0 },
     head: { type: 'plume', size: 46, colors: ['#e6d3a3', '#f4e8c9', '#cbb98a'] },
-    cut: { angle: 90, angleTol: 30, point: 0.09, pointTol: 0.16, speed: 'steady', pattern: 'zigzag' },
-    hint: 'Tough and stringy — saw through it with a zigzag stroke.',
+    cut: { angle: 90, angleTol: 30, point: 0.09, pointTol: 0.16, speed: 'slow', pattern: 'zigzag' },
+    hint: 'Tough and stringy — saw slowly through it with a zigzag stroke.',
   },
 
   /* ── Round 8: a second, thornier weed ─────────────────────────────── */
@@ -179,8 +179,8 @@ export const SPECIES = [
     head: { type: 'pom', size: 38, florets: 15, colors: ['#7ec8e3', '#a5d8ff', '#cfe9ff'], alts: [
       ['#d98cb3', '#f0b6d0', '#fbdcea'], ['#9b8de0', '#bdb2f5', '#ded8fc'],
     ] },
-    cut: { angle: 45, angleTol: 18, point: 0.14, pointTol: 0.13, speed: 'steady', pattern: 'cross' },
-    hint: 'Woody: slice it, then split the stem with a second crossing stroke.',
+    cut: { angle: 45, angleTol: 18, point: 0.14, pointTol: 0.13, speed: 'slow', pattern: 'cross' },
+    hint: 'Woody: a slow slice, then split the stem with a second crossing stroke.',
   },
 ];
 

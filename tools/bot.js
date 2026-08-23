@@ -215,7 +215,7 @@ export class Bot {
     const cutT = clamp(wantT + gauss(rng) * ERR.point * e, 0.04, 0.96);
 
     // Blade angle, measured against the stem the way scoring measures it.
-    const band = CFG.speeds[(cut && cut.speed) || 'steady'];
+    const band = CFG.speeds[(cut && cut.speed) || 'slow'];
     const mid = (band.lo + band.hi) / 2;
     const spec = {
       angleDeg: (cut && cut.angle != null ? cut.angle : 90) + gauss(rng) * ERR.angleDeg * e,

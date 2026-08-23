@@ -662,7 +662,8 @@ export class Game {
       this.scene.drawGrass(ctx, this.time);
       for (const p of this.pieces) p.draw(ctx);
       if (this.state === 'playing' || this.state === 'paused') {
-        for (const f of list) f.drawGuide(ctx);
+        const ring = this.mode === 'practice';
+        for (const f of list) f.drawGuide(ctx, { ring });
       }
       this.drawBasket(ctx);
     }

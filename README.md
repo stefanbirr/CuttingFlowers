@@ -15,29 +15,30 @@ a home screen and fully playable offline.
 ## Playing
 
 Stems sprout from the ground and run through a life cycle — sprout, grow, bud,
-**bloom**, wilt, spent. Two overlays teach you what to do:
-
-**The ring** around each bloom is its clock. The pale band on the ring is the
-window where the flower is at its best; the moving arc is where it is now. Cut
-on the band.
+**bloom**, wilt, spent. Cut a flower while it is wide open.
 
 **The guide stroke** crossing the stem is the technique, drawn literally: it is
 angled at the angle you must swipe, it sits at the height you must cut, it is
-*shaped* like the stroke you must make, and the dots on its end tell you the
-speed — one dot slow, two steady, three a fast snap. Trace it and you score.
+*shaped* like the stroke you must make, and its weight tells you the speed — a
+heavy line with broad arrowheads is a slow draw, a thin line with keen ones is
+a whip. It brightens as the bloom reaches its best. Trace it and you score.
+
+**The ring** around each bloom is its clock, with a pale band marking the
+window where the flower is at its best. It belongs to practice mode: in a live
+round the bloom itself is the cue, and a ring around every head is clutter.
 
 | | Technique |
 |---|---|
 | **Tulip** | Slow, straight across the middle of a soft hollow stem |
 | **Ox-eye Daisy** | Any angle, but fast and high — a wiry snap |
-| **Fern Frond** | Steady, square, right down at the base |
-| **Garden Rose** | A 45° slant low on the woody cane |
-| **Eucalyptus** | A curved sweep through the bendy sprig |
+| **Fern Frond** | A fast square snip right down at the base |
+| **Garden Rose** | A slow 45° slant low on the woody cane |
+| **Eucalyptus** | A slow curved sweep through the bendy sprig |
 | **Sunflower** | One fast square chop through the thick stalk |
 | **Lavender** | A long shallow 30° slant, fast |
-| **Pampas Grass** | Saw it — a zigzag stroke through the fibres |
+| **Pampas Grass** | Saw it slowly — a zigzag stroke through the fibres |
 | **Orchid Spray** | Slow and curving, or the fragile cane shatters |
-| **Hydrangea** | Slice it, then split it with a second crossing stroke |
+| **Hydrangea** | A slow slice, then split it with a second crossing stroke |
 | **Nettle / Bramble** | Weeds. Cut three and the round ends. |
 
 A cut is graded on five things, and the two that hurt most are the ones players

@@ -229,20 +229,35 @@ function headRim(ctx, head, o, L) {
 }
 
 /* Roughly where each head type's mass sits in local space, in fractions of
-   its drawn size — used to place the halo behind it. */
+   its drawn size — used to place the halo behind it. `w` is how far the
+   drawn bloom actually reaches sideways from the stem's axis, which is a
+   different number from the halo's radius: a lavender spike is tall and
+   narrow, a sunflower's petals stick out well past its nominal size. These
+   were read off rendered heads (alpha > 40, every seed), then rounded up a
+   little. Anything that needs to know whether a bloom fits on the screen
+   wants `w`, not `size`. */
 const HEAD_MASS = {
-  cup: { y: -0.50, r: 0.78 },
-  rosette: { y: -0.55, r: 0.95 },
-  disc: { y: -0.85, r: 1.05 },
-  spike: { y: -0.50, r: 0.55 },
-  pom: { y: -0.55, r: 0.80 },
-  orchid: { y: -0.90, r: 1.00 },
-  frond: { y: -0.60, r: 0.80 },
-  sprig: { y: -0.65, r: 0.75 },
-  plume: { y: -0.55, r: 0.70 },
-  nettle: { y: -0.60, r: 0.85 },
-  bramble: { y: -0.60, r: 0.80 },
+  cup: { y: -0.50, r: 0.78, w: 0.58 },
+  rosette: { y: -0.55, r: 0.95, w: 1.18 },
+  disc: { y: -0.85, r: 1.05, w: 1.40 },
+  spike: { y: -0.50, r: 0.55, w: 0.38 },
+  pom: { y: -0.55, r: 0.80, w: 0.74 },
+  orchid: { y: -0.90, r: 1.00, w: 1.02 },
+  frond: { y: -0.60, r: 0.80, w: 0.28 },
+  sprig: { y: -0.65, r: 0.75, w: 0.58 },
+  plume: { y: -0.55, r: 0.70, w: 0.60 },
+  nettle: { y: -0.60, r: 0.85, w: 0.62 },
+  bramble: { y: -0.60, r: 0.80, w: 0.88 },
 };
+
+/** The bloom's footprint about the stem tip: how far it reaches sideways,
+    and how far its mass sits above the tip (which becomes sideways reach
+    once the stem tilts). */
+export function headExtent(head, scale) {
+  const m = HEAD_MASS[head.type] || { y: -0.55, w: 1.0 };
+  const s = scale * head.size;
+  return { half: s * m.w, rise: s * Math.abs(m.y) };
+}
 
 /* A soft pool of shade behind the bloom. The sky cycles from a pale noon
    blue to a peach dawn to near-black night, so a petal colour that reads

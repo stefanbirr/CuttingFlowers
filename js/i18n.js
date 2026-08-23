@@ -55,10 +55,10 @@ const STR = {
     tutorial: {
       title: 'How to cut',
       steps: [
-        '<b>Wait for the bloom.</b> Stems sprout, open, then wither. The ring around a flower closes as it peaks — cut on the bright ring.',
+        '<b>Wait for the bloom.</b> Stems sprout, open, then wither. Cut while the petals are wide open — the guide on the stem brightens at the same moment.',
         '<b>Match the angle.</b> The badge on each stem shows the blade angle against the stem: <span class="ang">/</span> slanted 45°, <span class="ang">—</span> straight across, <span class="ang">\\</span> shallow 30°.',
         '<b>Hit the cut point.</b> A pale band marks where the stem should be severed. Low bands mean long stems for the vase.',
-        '<b>Mind the speed.</b> Dots on the badge: one = slow and careful, two = steady, three = a fast snap.',
+        '<b>Mind the speed.</b> A heavy line with broad arrowheads means draw the blade through slowly; a thin line with a pair of keen ones at each end means whip it through.',
         '<b>Some stems need a shape.</b> A curve, a saw-toothed zigzag, or two crossing strokes for woody stems.',
         '<b>Leave the nettles alone.</b> Three stings and the round is over.',
       ],
@@ -147,8 +147,8 @@ const STR = {
     },
     label: { wilted: 'wilted', stung: 'stung!' },
     speed: {
-      short: { slow: 'slow', steady: 'steady', fast: 'fast' },
-      long: { slow: 'slow, controlled', steady: 'steady', fast: 'fast snap' },
+      short: { slow: 'slow', fast: 'fast' },
+      long: { slow: 'slow and controlled', fast: 'a fast snap' },
     },
     pattern: {
       short: { straight: 'straight', arc: 'curve', zigzag: 'zigzag', cross: 'cross-cut' },
@@ -177,10 +177,10 @@ const STR = {
     tutorial: {
       title: 'Schnitttechnik',
       steps: [
-        '<b>Warte auf die Blüte.</b> Stängel treiben aus, öffnen sich und welken. Der Ring um eine Blume schließt sich am Höhepunkt — schneide auf dem hellen Ring.',
+        '<b>Warte auf die Blüte.</b> Stängel treiben aus, öffnen sich und welken. Schneide, solange die Blüte weit offen ist — die Hilfe am Stängel leuchtet im selben Moment auf.',
         '<b>Triff den Winkel.</b> Das Symbol am Stängel zeigt den Klingenwinkel zum Stängel: <span class="ang">/</span> schräg 45°, <span class="ang">—</span> quer, <span class="ang">\\</span> flach 30°.',
         '<b>Triff die Schnitthöhe.</b> Ein heller Streifen markiert, wo der Stängel durchtrennt werden soll. Tiefe Streifen ergeben lange Stiele für die Vase.',
-        '<b>Achte auf das Tempo.</b> Punkte am Symbol: einer = langsam und vorsichtig, zwei = gleichmäßig, drei = ein schneller Schnitt.',
+        '<b>Achte auf das Tempo.</b> Eine dicke Linie mit breiten Pfeilspitzen heißt: die Klinge langsam hindurchziehen. Eine dünne Linie mit je zwei spitzen Pfeilspitzen heißt: schnell hindurchschnappen.',
         '<b>Manche Stängel brauchen eine Form.</b> Eine Kurve, einen sägezahnartigen Zickzack oder zwei kreuzende Schnitte bei holzigen Stängeln.',
         '<b>Lass die Brennnesseln in Ruhe.</b> Drei Stiche und die Runde ist vorbei.',
       ],
@@ -269,8 +269,8 @@ const STR = {
     },
     label: { wilted: 'verwelkt', stung: 'gestochen!' },
     speed: {
-      short: { slow: 'langsam', steady: 'gleichmäßig', fast: 'schnell' },
-      long: { slow: 'langsam, kontrolliert', steady: 'gleichmäßig', fast: 'schneller Schnitt' },
+      short: { slow: 'langsam', fast: 'schnell' },
+      long: { slow: 'langsam und kontrolliert', fast: 'ein schneller Schnitt' },
     },
     pattern: {
       short: { straight: 'gerade', arc: 'Kurve', zigzag: 'Zickzack', cross: 'Kreuzschnitt' },
@@ -289,15 +289,15 @@ const SPECIES_DE = {
   tulip: { name: 'Tulpe', hint: 'Weicher, hohler Stängel — ein langsamer, gerader Schnitt durch die Mitte.' },
   daisy: { name: 'Wiesen-Margerite', hint: 'Drahtig und nachsichtig — beliebiger Winkel, einfach hoch und schnell schnappen.' },
   nettle: { name: 'Brennnessel', hint: 'Unkraut. Niemals schneiden — drei Stiche beenden die Runde.' },
-  fern: { name: 'Farnwedel', hint: 'Füllgrün — direkt am Boden abschneiden für einen langen Wedel.' },
-  rose: { name: 'Gartenrose', hint: 'Holziger Trieb: ein 45°-Schräganschnitt tief unten, damit er trinken kann. Vorsicht, Dornen.' },
-  eucalyptus: { name: 'Eukalyptus', hint: 'Biegsamer, silbriger Zweig — die Klinge in einer Kurve hindurchschwingen.' },
+  fern: { name: 'Farnwedel', hint: 'Füllgrün — mit einem schnellen Schnitt direkt am Boden für einen langen Wedel.' },
+  rose: { name: 'Gartenrose', hint: 'Holziger Trieb: ein langsamer 45°-Schräganschnitt tief unten, damit er trinken kann. Vorsicht, Dornen.' },
+  eucalyptus: { name: 'Eukalyptus', hint: 'Biegsamer, silbriger Zweig — die Klinge langsam in einer Kurve hindurchschwingen.' },
   sunflower: { name: 'Sonnenblume', hint: 'Dicker, faseriger Stängel — ein schneller, gerader Hieb ganz unten.' },
   lavender: { name: 'Lavendel', hint: 'Auf einem langen, flachen Schräganschnitt schneiden, schnell, bevor der Duft verfliegt.' },
-  pampas: { name: 'Pampasgras', hint: 'Zäh und faserig — mit einem Zickzack-Schnitt durchsägen.' },
+  pampas: { name: 'Pampasgras', hint: 'Zäh und faserig — schnell mit einem Zickzack-Schnitt durchsägen.' },
   bramble: { name: 'Brombeerranke', hint: 'Dornige Ranke. Stehen lassen.' },
   orchid: { name: 'Orchideenzweig', hint: 'Zerbrechlicher, bogiger Trieb — ein langsamer, schwungvoller Schnitt, sonst zersplittert er.' },
-  hydrangea: { name: 'Hortensie', hint: 'Holzig: erst einschneiden, dann den Stängel mit einem zweiten, kreuzenden Schnitt spalten.' },
+  hydrangea: { name: 'Hortensie', hint: 'Holzig: erst langsam einschneiden, dann den Stängel mit einem zweiten, kreuzenden Schnitt spalten.' },
 };
 
 export function speciesName(sp) { return lang === 'de' ? (SPECIES_DE[sp.id]?.name ?? sp.name) : sp.name; }

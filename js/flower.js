@@ -6,7 +6,7 @@ import {
   clamp, lerp, invLerp, smoothstep, rand, TAU, qPoint, qTangent,
   segIntersect, tolScore, withAlpha, shade, mix, hash01,
 } from './util.js';
-import { drawStem, drawLeaves, drawHead, drawCutFace, pickPalette, getLight } from './draw.js';
+import { drawStem, drawLeaves, drawHead, drawCutFace, headExtent, pickPalette, getLight } from './draw.js';
 
 const SAMPLES = 18;
 
@@ -21,20 +21,39 @@ export class Flower {
 
     const st = species.stem;
     this.maxLen = rand(st.max, st.min) * CFG.maxStemH * view.h;
-    this.lean = rand(st.lean, -st.lean);
-    this.bow = rand(0.16, -0.16) + this.lean * 0.4;
     this.width = st.width * view.scale;
     // Slender stems whip about in the wind; a sunflower's thick stalk barely
     // notices it. Keyed off the species' own drawn width.
     this.flex = clamp(5 / st.width, 0.55, 1.7);
 
+    this.headScale = view.scale * CFG.headScale;
+    this.headSize = species.head.size * this.headScale;
+
+    // A tall stem carries its bloom a long way sideways: at full height the
+    // lean alone can move the head a third of a phone's width. Off the edge
+    // it cannot be cut at all, and there is nothing the player can do about
+    // it, so the lean is chosen against the room this plant actually has —
+    // stems near an edge lean inward, the way they would toward light.
+    const swayRoom = (CFG.wind.gust + CFG.wind.breeze * 1.05) * this.flex;
+    // A tilted stem swings its bloom out sideways by roughly the head's rise
+    // times the tilt; 0.3 rad covers any lean the wind and the stem together
+    // can produce here.
+    const ext = headExtent(species.head, this.headScale);
+    const edge = ext.half + ext.rise * 0.3 + 6 * view.scale;
+    const room = (px) => px / this.maxLen - swayRoom;
+    const loLean = Math.max(-st.lean, -room(x - edge));
+    const hiLean = Math.min(st.lean, room(view.w - edge - x));
+    // One draw either way, spread across whatever range is left. The seeded
+    // balance harness replays this stream, so the number of calls here has
+    // to be the same for a stem in the middle and a stem against the fence.
+    const pick = rand(1, 0);
+    this.lean = hiLean > loLean ? loLean + pick * (hiLean - loLean) : (loLean + hiLean) / 2;
+    this.bow = rand(0.16, -0.16) + this.lean * 0.4;
+
     const slow = Math.max(CFG.lifespanFloor, Math.pow(0.95, round - 1));
     this.lifespan = species.lifespan * slow;
     this.age = 0;
     this.life = 0;
-
-    this.headScale = view.scale * CFG.headScale;
-    this.headSize = species.head.size * this.headScale;
 
     this.state = 'alive';        // alive → stub (cut) | missed (withered) | gone
     this.crossFirst = null;      // first stroke of a cross-cut, awaiting its partner
@@ -287,12 +306,16 @@ export class Flower {
     ctx.restore();
   }
 
-  /** Bloom ring + technique band. Drawn after all plants so cues stay legible. */
-  drawGuide(ctx) {
+  /** Bloom ring + technique band. Drawn after all plants so cues stay legible.
+      The ring is a training wheel: it spells out a moment the bloom itself
+      already announces by opening, and in a live round it just adds clutter
+      around every head. Practice keeps it, where reading the clock is the
+      whole exercise. */
+  drawGuide(ctx, { ring = false } = {}) {
     if (this.state !== 'alive') return;
     const s = this.view.scale;
 
-    if (!this.isHazard && this.life > PHASE.bud * 0.7) this.drawRing(ctx, s);
+    if (ring && !this.isHazard && this.life > PHASE.bud * 0.7) this.drawRing(ctx, s);
 
     const a = this.guideAlpha;
     if (a <= 0.02 || !this.species.cut) return;
@@ -362,10 +385,13 @@ export class Flower {
     roundRect(ctx, -R, -thick / 2, R * 2, thick, thick / 2);
     ctx.fill();
 
-    // The stroke you are meant to trace.
+    // The stroke you are meant to trace. Speed rides on the stroke itself:
+    // a slow cut is drawn heavy and blunt, a fast one keen and thin. You
+    // read the weight of the line rather than counting anything.
+    const fast = cut.speed === 'fast';
     const col = cut.angle == null ? '#cfe0cc' : '#ffe9a3';
     ctx.strokeStyle = withAlpha(col, hot);
-    ctx.lineWidth = 2.4 * s;
+    ctx.lineWidth = (fast ? 1.7 : 3.4) * s;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (cut.angle == null) ctx.setLineDash([5 * s, 5 * s]);
@@ -373,15 +399,34 @@ export class Flower {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Speed: one dot slow, two steady, three a snap.
-    const dots = { slow: 1, steady: 2, fast: 3 }[cut.speed] || 1;
-    ctx.fillStyle = withAlpha(col, hot * 0.95);
-    for (let i = 0; i < dots; i++) {
-      ctx.beginPath();
-      ctx.arc(R + (5 + i * 6) * s, 0, 2.1 * s, 0, TAU);
-      ctx.fill();
-    }
+    speedMark(ctx, fast, R, s, withAlpha(col, hot * 0.95));
     ctx.restore();
+  }
+}
+
+/* How hard to swing, at both ends of the guide stroke. A blunt splayed wedge
+   for a drawn cut, a pair of keen ones for a whipped cut — the same idiom a
+   playback control uses, so the difference lands at a glance instead of
+   asking anyone to count pips. Mirrored left and right on purpose: the cut
+   may be made in either direction, and a lone arrowhead would claim
+   otherwise. */
+function speedMark(ctx, fast, R, s, color) {
+  const half = fast ? 0.55 : 1.05;   // radians: keen for fast, splayed for slow
+  const arm = (fast ? 5.0 : 6.2) * s;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = (fast ? 1.7 : 3.0) * s;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const offsets = fast ? [0, 4.4 * s] : [0];
+  for (const side of [1, -1]) {
+    for (const off of offsets) {
+      const x = side * (R + 6 * s + off);
+      ctx.beginPath();
+      ctx.moveTo(x - side * Math.cos(half) * arm, -Math.sin(half) * arm);
+      ctx.lineTo(x, 0);
+      ctx.lineTo(x - side * Math.cos(half) * arm, Math.sin(half) * arm);
+      ctx.stroke();
+    }
   }
 }
 
