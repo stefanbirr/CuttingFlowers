@@ -102,16 +102,39 @@ export const CFG = {
     recovery: 0.34,   // fraction of the way back to full weight, per later spawn
   },
 
-  /* How many weeds may stand at once. A wall of nettles across a field
-     that only holds three or four stems is a round the player cannot do
-     much with, however well they cut. Rare, but cheap to rule out.
+  /* Weeds.
 
-     (Freeing the slot outright was tried and measured: letting weeds stand
-     *alongside* the harvest rather than in place of it moved the average
-     round by well under a tenth of a cut, so weeds are not the throughput
-     drain they look like. This cap is here for the pathological case, not
-     as a fairness lever.) */
-  maxHazardsAlive: 1,
+     They are budgeted apart from the harvest: `maxAlive` counts flowers
+     only, so how much there is to cut never depends on how many nettles the
+     field happened to deal. What weeds cost you is *lines* — every one on
+     screen is more ground a swipe has to miss on its follow-through — and
+     that is a cost skill can answer, unlike simply being handed less to cut.
+
+     Which makes their number a difficulty dial rather than a tax: how many
+     may stand at once is fixed per round, so late rounds get a thicker,
+     more hemmed-in field on purpose. Only *where* and *when* they appear is
+     left to chance. */
+  hazards: {
+    useSlots: false,   // true puts weeds back in competition for maxAlive
+    aliveBase: 1,      // weeds allowed to stand together on round 1
+    aliveStep: 4,      // rounds between each extra weed permitted
+    aliveCap: 3,
+    /* Spawn weight multiplier, by rounds since that weed unlocked: eases in
+       so a new weed never arrives in force. This is the dial for late
+       difficulty — raising weightCap costs the player lines to cut through,
+       never stems to cut, which is the kind of pressure skill can answer.
+
+       It is potent, so it is set here at the balance the quota curve was
+       tuned against rather than to a harder default. Measured, four skill
+       levels, 720 rounds: at cap 1.0 a top player clears round 8 63% of the
+       time; at 1.6 that falls to 47%, and at 2.6 to 38%, with round 10
+       going 68% -> 47%. Skill still decides the round throughout — skill's
+       share of the variance held at 43-69% — so a harder default is a fair
+       thing to want, but the quota has to come down with it. */
+    weightBase: 0.45,
+    weightStep: 0.2,
+    weightCap: 1.0,
+  },
 
   /* Practice: one chosen flower at a time, dead centre, no clock. */
   practiceRespawn: 700,   // ms of calm after a cut before the next sprouts

@@ -81,7 +81,7 @@ export class Bot {
     this.stroke = null;
     this.pendingCross = null;
     this.gapUntil = 0;
-    this.stats = { swipes: 0, weedSwipes: 0, abandoned: 0 };
+    this.stats = { swipes: 0, weedSwipes: 0, abandoned: 0, heldOff: 0 };
   }
 
   /* ── Per-frame ──────────────────────────────────────────────────── */
@@ -106,7 +106,14 @@ export class Bot {
 
     const f = tg.flower;
     if (now >= tg.readyAt && f.life >= tg.life) {
-      this.beginStroke(this.planStroke(f));
+      const plan = this.planStroke(f);
+      if (!plan) {
+        // Nothing clean at this bloom yet; look again shortly. The target
+        // is kept, so it stays on watch as the weeds age out.
+        this.gapUntil = now + 70;
+        return;
+      }
+      this.beginStroke(plan);
       this.target = null;
     }
   }
@@ -174,6 +181,29 @@ export class Bot {
 
   /* ── Planning a swipe ───────────────────────────────────────────── */
 
+  /** One candidate swipe: a height on the stem and which way the blade
+      leans. Mirroring negates the angle, which reads as the same angle to
+      the stem (scoring measures it undirected) while sweeping different
+      ground — so it is free to try. */
+  makePlan(f, cutT, mirror, spec) {
+    const at = f.pointAt(cutT);
+    const dir = f.dirAt(cutT);
+    const rad = ((mirror ? -spec.angleDeg : spec.angleDeg) * Math.PI) / 180;
+    return {
+      at,
+      dir,
+      axis: {
+        x: dir.x * Math.cos(rad) - dir.y * Math.sin(rad),
+        y: dir.x * Math.sin(rad) + dir.y * Math.cos(rad),
+      },
+      speed: spec.speed,
+      pattern: spec.pattern,
+      fidelity: spec.fidelity,
+      cross: spec.pattern === 'cross',
+    };
+  }
+
+  /** Returns a swipe, or null to hold off because every line is fouled. */
   planStroke(f) {
     const e = this.e;
     const rng = this.rng;
@@ -183,60 +213,74 @@ export class Bot {
     // a player aims at where it is rather than where it was.
     const wantT = cut ? cut.point : 0.5;
     const cutT = clamp(wantT + gauss(rng) * ERR.point * e, 0.04, 0.96);
-    const at = f.pointAt(cutT);
-    const dir = f.dirAt(cutT);
 
     // Blade angle, measured against the stem the way scoring measures it.
-    const wantAngle = cut && cut.angle != null ? cut.angle : 90;
-    const angleDeg = wantAngle + gauss(rng) * ERR.angleDeg * e;
-    const rad = (angleDeg * Math.PI) / 180;
-    const axis = {
-      x: dir.x * Math.cos(rad) - dir.y * Math.sin(rad),
-      y: dir.x * Math.sin(rad) + dir.y * Math.cos(rad),
-    };
-
-    // Speed, as a multiplicative miss so a bad swipe lands well outside
-    // the band rather than just at its edge.
     const band = CFG.speeds[(cut && cut.speed) || 'steady'];
     const mid = (band.lo + band.hi) / 2;
-    const speed = mid * Math.exp(gauss(rng) * ERR.speedLog * e);
+    const spec = {
+      angleDeg: (cut && cut.angle != null ? cut.angle : 90) + gauss(rng) * ERR.angleDeg * e,
+      // Speed as a multiplicative miss, so a bad swipe lands well outside
+      // the band rather than just at its edge.
+      speed: mid * Math.exp(gauss(rng) * ERR.speedLog * e),
+      pattern: cut ? cut.pattern : 'straight',
+      // How faithfully the shape gets traced. Low skill flattens an arc and
+      // drops legs off a saw, which is how patternScore reads a botched try.
+      fidelity: clamp(1 - 0.95 * e + gauss(rng) * 0.16 * e, 0, 1.1),
+    };
 
-    const pattern = cut ? cut.pattern : 'straight';
-    // How faithfully the shape gets traced. Low skill flattens an arc and
-    // drops legs off a saw, which is exactly how patternScore reads a
-    // botched attempt.
-    const fidelity = clamp(1 - 0.95 * e + gauss(rng) * 0.16 * e, 0, 1.1);
+    const base = this.makePlan(f, cutT, false, spec);
+    if (f.isHazard) return base;
 
-    const plan = { at, axis, speed, pattern, fidelity, cross: pattern === 'cross', dir };
+    // Whether the danger is noticed at all scales with skill.
+    if (rng() >= this.skill) return base;
+    if (!this.pathHitsHazard(this.buildPath(base))) return base;
 
-    // A fast swipe reaches a long way across the field, and clipping a
-    // nettle on the follow-through ends rounds. The angle is measured
-    // undirected, so mirroring the blade about the stem scores exactly the
-    // same while sweeping a different piece of ground — which is what a
-    // player does without thinking about it. How reliably the bot spots
-    // the danger scales with skill.
-    if (!f.isHazard && rng() < this.skill) {
-      const d = plan.dir;
-      const dot = plan.axis.x * d.x + plan.axis.y * d.y;
-      const mirrored = {
-        ...plan,
-        axis: { x: 2 * dot * d.x - plan.axis.x, y: 2 * dot * d.y - plan.axis.y },
-      };
-      if (this.pathHitsHazard(this.buildPath(plan))
-        && !this.pathHitsHazard(this.buildPath(mirrored))) {
-        return mirrored;
+    // A swipe reaches a long way past its target, and clipping a nettle
+    // ends rounds — so look for a line that misses. Mirror first, since
+    // that costs nothing, then give ground on the cut height, nearest
+    // offsets first: a slightly mistimed height beats a strike.
+    for (const dt of [0, 0.09, -0.09, 0.18, -0.18]) {
+      for (const mirror of [true, false]) {
+        if (dt === 0 && !mirror) continue;          // that was `base`
+        const cand = this.makePlan(f, clamp(cutT + dt, 0.05, 0.95), mirror, spec);
+        if (!this.pathHitsHazard(this.buildPath(cand))) return cand;
       }
     }
-    return plan;
+
+    // Every line is fouled. Wait for the weeds to move on — unless the
+    // bloom is about to be lost, in which case take the cut and the risk.
+    this.stats.heldOff++;
+    return f.life > 0.86 ? base : null;
   }
 
   /** Would this swipe cut through a weed on its way past the target? */
   pathHitsHazard(pts) {
     const weeds = this.game.flowers.filter((f) => f.isHazard && f.state === 'alive');
     if (!weeds.length) return false;
-    for (let i = 1; i < pts.length; i++) {
-      for (const w of weeds) {
-        const wp = w.pts;
+
+    // Bounding box first. This runs for every candidate line of every cut,
+    // so the full segment-by-segment test is worth avoiding when the weed
+    // is nowhere near the swipe.
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pts) {
+      if (p.x < x0) x0 = p.x;
+      if (p.x > x1) x1 = p.x;
+      if (p.y < y0) y0 = p.y;
+      if (p.y > y1) y1 = p.y;
+    }
+
+    for (const w of weeds) {
+      const wp = w.pts;
+      let wx0 = Infinity, wy0 = Infinity, wx1 = -Infinity, wy1 = -Infinity;
+      for (const p of wp) {
+        if (p.x < wx0) wx0 = p.x;
+        if (p.x > wx1) wx1 = p.x;
+        if (p.y < wy0) wy0 = p.y;
+        if (p.y > wy1) wy1 = p.y;
+      }
+      if (wx1 < x0 || wx0 > x1 || wy1 < y0 || wy0 > y1) continue;
+
+      for (let i = 1; i < pts.length; i++) {
         for (let k = 1; k < wp.length; k++) {
           if (segIntersect(pts[i - 1], pts[i], wp[k - 1], wp[k])) return true;
         }
@@ -464,6 +508,7 @@ export function runRound(game, {
       mix,
       swipes: bot.stats.swipes,
       abandoned: bot.stats.abandoned,
+      heldOff: bot.stats.heldOff,
       avgQuality: +avg.toFixed(3),
       grades,
       secondsUsed: +(vnow / 1000).toFixed(1),

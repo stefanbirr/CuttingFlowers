@@ -189,11 +189,13 @@ export const BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
 /** Species available on a given round, weighted for the spawner. */
 export function poolForRound(round) {
   const avail = SPECIES.filter((s) => s.unlock <= round);
-  // Hazards ramp up so early rounds stay welcoming.
+  const h = CFG.hazards;
+  // Weeds ease in so early rounds stay welcoming, then keep thickening —
+  // see CFG.hazards for why that is the lever late difficulty leans on.
   return avail.map((s) => ({
     species: s,
     weight: s.kind === 'hazard'
-      ? s.weight * Math.min(1, 0.45 + 0.2 * (round - s.unlock))
+      ? s.weight * Math.min(h.weightCap, h.weightBase + h.weightStep * (round - s.unlock))
       : s.weight,
   }));
 }

@@ -169,6 +169,13 @@ export class Game {
     return Math.min(CFG.maxAlive + Math.floor((this.round - 1) / CFG.maxAliveStep), CFG.maxAliveCap);
   }
 
+  /** How many weeds may stand together this round. Fixed per round, so the
+      pressure is designed rather than dealt. */
+  maxHazardsForRound() {
+    const h = CFG.hazards;
+    return Math.min(h.aliveCap, h.aliveBase + Math.floor((this.round - 1) / h.aliveStep));
+  }
+
   /** Required gap between canopies, relaxing slowly as rounds get harder. */
   clearanceForRound() {
     const ease = Math.max(CFG.clearanceFloor, 1 - (this.round - 1) * CFG.clearanceEase);
@@ -188,12 +195,15 @@ export class Game {
       return;
     }
 
-    if (!ambient && alive.length >= this.maxAliveForRound()) return;
-
     const hazardsUp = alive.reduce((n, f) => n + (f.isHazard ? 1 : 0), 0);
+    // maxAlive is the harvest budget. Weeds are counted against it only if
+    // they are set to compete for it; otherwise what there is to cut stays
+    // the same however many nettles are standing.
+    const holding = CFG.hazards.useSlots ? alive.length : alive.length - hazardsUp;
+    if (!ambient && holding >= this.maxAliveForRound()) return;
 
     const species = this.pool.draw(Math.random, {
-      skipHazards: ambient || hazardsUp >= CFG.maxHazardsAlive,
+      skipHazards: ambient || hazardsUp >= this.maxHazardsForRound(),
     });
     // Head radius accounts for the oversized bloom art (CFG.headScale), not
     // just the stem's footprint, so canopies actually clear each other.

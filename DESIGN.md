@@ -45,6 +45,36 @@ mostly decided by things outside the player's hands.
   and flattens when they do.
 - **A bad cut costs ground, not everything** (`CFG.comboBreakLoss`). Losing a
   streak still stings without erasing a dozen good cuts before it.
+- **Weeds cost lines, not stems** (`CFG.hazards`). `maxAlive` counts flowers
+  only, so how much there is to harvest never depends on how many nettles
+  turned up. What a weed takes is ground a swipe has to miss on its
+  follow-through — a cost skill can answer.
+
+## The difficulty dial
+
+`CFG.hazards.weightCap` is the intended lever for late-round difficulty. It
+thickens the field with weeds, which costs the player clean lines rather than
+harvest, so it makes a round harder without making it more arbitrary.
+
+It is strong, and it is deliberately shipped at the balance the quota curve
+was tuned against rather than at a harder default. Measured over 720 rounds
+at four skill levels:
+
+| `weightCap` | top player clears r8 | clears r10 |
+|------------:|---------------------:|-----------:|
+|    1.0 (now) |                 63% |        68% |
+|         1.6 |                 47% |        47% |
+|         2.6 |                 38% |        47% |
+
+Skill still decided the round at every setting (its share of the variance
+held at 43–69%), so a harder default is a legitimate thing to want — but the
+quota has to come down with it, or late rounds become unclearable for
+everyone rather than merely demanding.
+
+Worth knowing when tuning it: weeds still compete with flowers for *space*
+via `CFG.spawnClearance`, and a bot that has to hunt for a clean line loses
+time doing it. So raising weed pressure does cost some harvest indirectly,
+even though weeds no longer hold a harvest slot outright.
 
 ## How to check it
 
