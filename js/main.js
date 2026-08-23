@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import { ui } from './ui.js';
 import { sound } from './audio.js';
 import { store } from './storage.js';
+import { replayDurationMs } from './replay.js';
 import { t, getLang, setLang, otherLangName, onLangChange } from './i18n.js';
 
 const canvas = document.getElementById('stage');
@@ -81,6 +82,49 @@ on('btnCopyLog', async () => {
   copyLogBtn.textContent = t(ok ? 'over.copyLogDone' : 'over.copyLog');
   copyLogBtn.disabled = ok;
   setTimeout(() => { copyLogBtn.textContent = t('over.copyLog'); copyLogBtn.disabled = false; }, 1600);
+});
+
+/* ── Cut replay ───────────────────────────────────────────────────── */
+
+const replayPlayBtn = document.getElementById('btnReplayPlay');
+let replayAnim = null;      // { raf } while the "play" animation is running
+let replayCut = null;       // the cut currently shown in the detail view
+
+function stopReplayAnim() {
+  if (replayAnim) cancelAnimationFrame(replayAnim.raf);
+  replayAnim = null;
+  if (replayPlayBtn) { replayPlayBtn.textContent = t('replay.play'); replayPlayBtn.disabled = false; }
+}
+
+function pickCut(cutEvent) {
+  stopReplayAnim();
+  replayCut = cutEvent;
+  ui.showReplayDetail(cutEvent);
+}
+
+function openReplayList() {
+  stopReplayAnim();
+  ui.buildReplayList(game.runLog, (cutEvent) => { sound.ui(); pickCut(cutEvent); });
+}
+
+on('btnReplay', () => { openReplayList(); ui.show('screenReplay'); });
+on('btnReplayBack', openReplayList);
+on('btnReplayClose', () => { stopReplayAnim(); ui.hide('screenReplay'); });
+
+on('btnReplayPlay', () => {
+  if (replayAnim || !replayCut) return;
+  const cut = replayCut;
+  const dur = Math.max(300, replayDurationMs(cut));
+  replayPlayBtn.textContent = t('replay.playing');
+  replayPlayBtn.disabled = true;
+  const start = performance.now();
+  const step = (now) => {
+    const frac = Math.min(1, (now - start) / dur);
+    ui.drawReplayCanvasFrame(cut, frac);
+    if (frac >= 1) { stopReplayAnim(); return; }
+    replayAnim = { raf: requestAnimationFrame(step) };
+  };
+  replayAnim = { raf: requestAnimationFrame(step) };
 });
 
 for (const btn of document.querySelectorAll('[data-close]')) {

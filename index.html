@@ -165,7 +165,36 @@
     <div class="coach-tips" id="overCoach"></div>
     <div class="btn-row"><button class="btn primary" id="btnRetry">Harvest again</button></div>
     <div class="btn-row"><button class="btn" id="btnHome">Main menu</button></div>
-    <div class="btn-row"><button class="btn ghost small" id="btnCopyLog">Copy run log</button></div>
+    <div class="btn-row">
+      <button class="btn ghost small" id="btnReplay">Watch your cuts</button>
+      <button class="btn ghost small" id="btnCopyLog">Copy run log</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cut replay ───────────────────────────────────────────────────── -->
+<div id="screenReplay" class="layer screen hidden">
+  <div class="panel wide">
+    <h2 id="replayTitle">Watch your cuts</h2>
+
+    <div id="replayList" class="replay-list"></div>
+
+    <div id="replayDetail" class="replay-detail hidden">
+      <div class="replay-stage">
+        <canvas id="replayCanvas" width="300" height="300"></canvas>
+      </div>
+      <div class="replay-legend">
+        <span><i class="legend-dot ideal"></i><span id="replayLegendIdeal">Ideal stroke</span></span>
+        <span><i class="legend-dot actual"></i><span id="replayLegendActual">Your stroke</span></span>
+      </div>
+      <div class="replay-readout" id="replayReadout"></div>
+      <div class="btn-row">
+        <button class="btn ghost small" id="btnReplayBack">Back to list</button>
+        <button class="btn primary small" id="btnReplayPlay">Play</button>
+      </div>
+    </div>
+
+    <div class="btn-row"><button class="btn" id="btnReplayClose">Close</button></div>
   </div>
 </div>
 

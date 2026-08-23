@@ -1,8 +1,9 @@
 /* DOM chrome: screens, HUD, field guide, results panels. */
 
-import { quotaForRound } from './config.js';
+import { CFG, quotaForRound } from './config.js';
 import { SPECIES } from './species.js';
 import { drawStem, drawHead } from './draw.js';
+import { drawReplay, drawReplayFrame } from './replay.js';
 import { clamp } from './util.js';
 import { store } from './storage.js';
 import {
@@ -36,6 +37,14 @@ export const ui = {
     finalScore: $('finalScore'),
     finalSub: $('finalSub'),
     overCoach: $('overCoach'),
+    btnReplay: $('btnReplay'),
+    replayTitle: $('replayTitle'),
+    replayList: $('replayList'),
+    replayDetail: $('replayDetail'),
+    replayCanvas: $('replayCanvas'),
+    replayReadout: $('replayReadout'),
+    replayLegendIdeal: $('replayLegendIdeal'),
+    replayLegendActual: $('replayLegendActual'),
     pickGrid: $('pickGrid'),
     levelGrid: $('levelGrid'),
     hudPractice: $('hudPractice'),
@@ -252,6 +261,13 @@ export const ui = {
     set('btnRetry', t('over.retry'));
     set('btnHome', t('over.home'));
     set('btnCopyLog', t('over.copyLog'));
+    set('btnReplay', t('over.replay'));
+    set('replayTitle', t('replay.title'));
+    set('replayLegendIdeal', t('replay.legendIdeal'));
+    set('replayLegendActual', t('replay.legendActual'));
+    set('btnReplayBack', t('replay.back'));
+    set('btnReplayPlay', t('replay.play'));
+    set('btnReplayClose', t('replay.close'));
 
     set('rotateText', t('rotate'));
 
@@ -301,6 +317,80 @@ export const ui = {
       : t('over.reachedRound', { round, best: fmtNum(best) });
     this.el.overCoach.innerHTML = tips.map((tip) => `<p class="coach-tip">${tip}</p>`).join('');
     this.show('screenOver');
+  },
+
+  /* ── Replay ──────────────────────────────────────────────────── */
+
+  /** The pick list: every cut this run that has a recorded stroke to show,
+      grouped by round when there was more than one. `onPick(cutEvent)` is
+      called with the log entry for whichever row was tapped. */
+  buildReplayList(runLog, onPick) {
+    const list = this.el.replayList;
+    list.innerHTML = '';
+    const rounds = runLog?.rounds || [];
+    const multi = rounds.length > 1;
+    let any = false;
+    for (const r of rounds) {
+      const cuts = r.events.filter((e) => e.type === 'cut' && e.replayPath);
+      if (!cuts.length) continue;
+      if (multi) {
+        const h = document.createElement('div');
+        h.className = 'replay-round-head';
+        h.textContent = t('replay.round', { round: r.round });
+        list.appendChild(h);
+      }
+      for (const e of cuts) {
+        any = true;
+        const grade = CFG.grades.find((g) => g.key === e.grade) || CFG.grades[CFG.grades.length - 1];
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'replay-item';
+        row.innerHTML = `
+          <span class="replay-item-dot" style="background:${grade.color}"></span>
+          <span class="replay-item-body">
+            <span class="replay-item-name">${speciesName(SPECIES.find((s) => s.id === e.species) || { id: e.species, name: e.species })}</span>
+            <span class="replay-item-grade">${t(`grade.${e.grade}`)} · ${Math.round(e.quality * 100)}%</span>
+          </span>`;
+        row.addEventListener('click', () => onPick(e));
+        list.appendChild(row);
+      }
+    }
+    this.toggle('replayList', true);
+    this.toggle('replayDetail', false);
+    if (!any) list.innerHTML = `<p class="replay-empty">${t('replay.empty')}</p>`;
+  },
+
+  /** The comparison view for one cut: static overlay plus the readout. The
+      "play" animation redraws the canvas itself frame by frame — see
+      main.js, which owns that loop and calls back into drawReplayFrame. */
+  showReplayDetail(cutEvent) {
+    this.toggle('replayList', false);
+    this.toggle('replayDetail', true);
+    const sp = SPECIES.find((s) => s.id === cutEvent.species) || { id: cutEvent.species, name: cutEvent.species };
+    const p = cutEvent.parts;
+    const axis = (label, val, extra = '') =>
+      `<span class="replay-axis">${label} <b>${Math.round(val * 100)}%</b>${extra}</span>`;
+    this.el.replayReadout.innerHTML = `
+      <div class="replay-readout-head">${speciesName(sp)} — ${t(`grade.${cutEvent.grade}`)} (${Math.round(cutEvent.quality * 100)}%)</div>
+      <div class="replay-axes">
+        ${axis(t('replay.axis.timing'), p.timing)}
+        ${axis(t('replay.axis.point'), p.point)}
+        ${p.angle == null ? '' : axis(t('replay.axis.angle'), p.angle, ` (${cutEvent.angleMeasured}° ${t('replay.of')} ${cutEvent.angleTarget}°)`)}
+        ${axis(t('replay.axis.speed'), p.speed, ` (${cutEvent.speedMeasured} · ${speedLabelShort(cutEvent.speedBand)})`)}
+        ${axis(t('replay.axis.pattern'), p.pattern)}
+      </div>`;
+    const canvas = this.el.replayCanvas;
+    drawReplay(canvas.getContext('2d'), canvas.width, canvas.height, cutEvent);
+  },
+
+  drawReplayCanvasFrame(cutEvent, frac) {
+    const canvas = this.el.replayCanvas;
+    drawReplayFrame(canvas.getContext('2d'), canvas.width, canvas.height, cutEvent, frac);
+  },
+
+  drawReplayCanvasStatic(cutEvent) {
+    const canvas = this.el.replayCanvas;
+    drawReplay(canvas.getContext('2d'), canvas.width, canvas.height, cutEvent);
   },
 };
 

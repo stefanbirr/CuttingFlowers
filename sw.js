@@ -8,7 +8,7 @@
    that did not exist yet. Serving strictly from the current generation
    makes that impossible — updates arrive by bumping VERSION, all at once. */
 
-const VERSION = 'bloom-blade-v24';
+const VERSION = 'bloom-blade-v25';
 const SHELL = [
   '.',
   'index.html',
@@ -23,6 +23,7 @@ const SHELL = [
   'js/gesture.js',
   'js/scoring.js',
   'js/coach.js',
+  'js/replay.js',
   'js/bouquet.js',
   'js/scene.js',
   'js/particles.js',

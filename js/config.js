@@ -144,6 +144,14 @@ export const CFG = {
      reads clearly no matter how tall the stem was or where you swiped. */
   feedbackY: 0.32,
 
+  /* The replay screen redraws a recorded stroke against the same guide
+     shape the field showed live, at a fixed size rather than whatever
+     scale the original device happened to be — recorded strokes are
+     normalised to span roughly this width (see Game#finalize), so a cut
+     made on a phone and one made on a tablet compare the same way. */
+  replayR: 76,
+  replayThick: 15,
+
   /* Gesture analysis */
   strokeMaxPoints: 220,
   strokeIdleMs: 130,      // a pause this long ends the logical stroke

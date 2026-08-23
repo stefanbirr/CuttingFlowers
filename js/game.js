@@ -16,6 +16,33 @@ import { ui } from './ui.js';
 import { t, gradeName, weakNoteText, fmtNum } from './i18n.js';
 import { clamp, lerp, rand } from './util.js';
 
+/** Turn a recorded stroke into the frame the replay screen draws against:
+    origin at the cut point, rotated so the *demanded* blade angle is the
+    local x-axis — a perfectly-aimed cut is a flat horizontal line, and any
+    tilt in the drawn path is exactly the angle the player missed by. Also
+    rescaled so it fills roughly the same width as the guide shape, since
+    the recording happened at whatever pixel scale that device was — a
+    phone and a tablet should compare the same way. Returns null when no
+    usable stroke was captured (rare: only the fallback mid-swipe snapshot
+    survived, and it was a single point). */
+function buildReplayPath(rec, cut) {
+  const raw = rec.rawPath?.length >= 2 ? rec.rawPath : rec.fallbackPath;
+  if (!raw || raw.length < 2) return null;
+  const stemDir = rec.stemDir;
+  const stemAng = Math.atan2(stemDir.y, stemDir.x);
+  const idealAngle = stemAng + ((cut.angle == null ? 90 : cut.angle) * Math.PI) / 180;
+  const c = Math.cos(-idealAngle), s = Math.sin(-idealAngle);
+  const t0 = raw[0].t;
+  const local = raw.map((p) => {
+    const dx = p.x - rec.x, dy = p.y - rec.y;
+    return { x: dx * c - dy * s, y: dx * s + dy * c, t: p.t - t0 };
+  });
+  const last = local[local.length - 1];
+  const span = Math.max(1, Math.hypot(last.x - local[0].x, last.y - local[0].y));
+  const scale = clamp((CFG.replayR * 1.7) / span, 0.4, 3.5);
+  return local.map((p) => ({ x: +(p.x * scale).toFixed(1), y: +(p.y * scale).toFixed(1), t: p.t }));
+}
+
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
@@ -306,6 +333,10 @@ export class Game {
         stemDir: f.dirAt(hit.t),
         timing: f.timingQuality, life: f.life,
         fallbackShape: this.blade.shape(),
+        // Best-effort in case the stroke never reaches onStrokeEnd before
+        // finalizeDelay — a mid-swipe snapshot, not the full gesture, but
+        // still something to show on the replay screen rather than nothing.
+        fallbackPath: this.blade.points.slice(),
       };
 
       if (f.species.cut.pattern === 'cross' && !f.crossFirst) {
@@ -373,11 +404,15 @@ export class Game {
 
   onStrokeEnd(strokeId) {
     const shape = this.blade.shape();
+    // The full gesture, follow-through and all — captured now because the
+    // very next stroke overwrites blade.points, and this is the one moment
+    // guaranteed to still hold the stroke that was just judged.
+    const path = this.blade.points.slice();
     for (const rec of this.pending) {
-      if (rec.strokeId === strokeId && !rec.graded) rec.shape = shape;
+      if (rec.strokeId === strokeId && !rec.graded) { rec.shape = shape; rec.rawPath = path; }
     }
     for (const f of this.flowers) {
-      if (f.crossFirst && f.crossFirst.strokeId === strokeId) f.crossFirst.shape = shape;
+      if (f.crossFirst && f.crossFirst.strokeId === strokeId) { f.crossFirst.shape = shape; f.crossFirst.rawPath = path; }
     }
   }
 
@@ -435,6 +470,8 @@ export class Game {
       speedMeasured: +rec.speed.toFixed(2),
       speedBand: cut.speed,
       pattern: cut.pattern,
+      angleFree: cut.angle == null,
+      replayPath: buildReplayPath(rec, cut),
     });
 
     const piece = rec.piece;
@@ -555,7 +592,10 @@ export class Game {
         if (rec.graded) { this.pending.splice(i, 1); continue; }
         const strokeOver = this.blade.strokeId !== rec.strokeId || !this.blade.active;
         if (rec.shape || strokeOver || now - rec.time > CFG.finalizeDelay) {
-          if (!rec.shape && this.blade.strokeId === rec.strokeId) rec.shape = this.blade.shape();
+          if (!rec.shape && this.blade.strokeId === rec.strokeId) {
+            rec.shape = this.blade.shape();
+            rec.rawPath = this.blade.points.slice();
+          }
           this.finalize(rec);
           this.pending.splice(i, 1);
         }

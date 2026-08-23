@@ -128,6 +128,7 @@ const STR = {
       home: 'Main menu',
       copyLog: 'Copy run log',
       copyLogDone: 'Copied!',
+      replay: 'Watch your cuts',
     },
     coach: {
       nearMiss: {
@@ -144,6 +145,21 @@ const STR = {
         other: '{n} flowers wilted before you reached them, resetting your multiplier each time.',
       },
       pace: 'You landed {cuts} clean cuts in {seconds}s — a little more pace next time would close the gap.',
+    },
+    replay: {
+      title: 'Watch your cuts',
+      round: 'Round {round}',
+      empty: 'Nothing recorded to replay from this run.',
+      legendIdeal: 'Ideal stroke',
+      legendActual: 'Your stroke',
+      back: 'Back to list',
+      play: 'Play',
+      playing: 'Playing…',
+      close: 'Close',
+      of: 'of',
+      axis: {
+        timing: 'Timing', point: 'Point', angle: 'Angle', speed: 'Speed', pattern: 'Pattern',
+      },
     },
     hud: {
       score: 'Score', round: 'Round', time: 'Time',
@@ -268,6 +284,7 @@ const STR = {
       home: 'Hauptmenü',
       copyLog: 'Rundenprotokoll kopieren',
       copyLogDone: 'Kopiert!',
+      replay: 'Schnitte ansehen',
     },
     coach: {
       nearMiss: {
@@ -284,6 +301,21 @@ const STR = {
         other: '{n} Blumen sind verwelkt, bevor du sie erreicht hast, und haben deinen Multiplikator jedes Mal zurückgesetzt.',
       },
       pace: 'Du hast {cuts} saubere Schnitte in {seconds}s geschafft — etwas mehr Tempo würde beim nächsten Mal reichen.',
+    },
+    replay: {
+      title: 'Schnitte ansehen',
+      round: 'Runde {round}',
+      empty: 'Für diesen Lauf wurde nichts zum Ansehen aufgezeichnet.',
+      legendIdeal: 'Idealer Schnitt',
+      legendActual: 'Dein Schnitt',
+      back: 'Zurück zur Liste',
+      play: 'Abspielen',
+      playing: 'Läuft …',
+      close: 'Schließen',
+      of: 'von',
+      axis: {
+        timing: 'Timing', point: 'Punkt', angle: 'Winkel', speed: 'Tempo', pattern: 'Form',
+      },
     },
     hud: {
       score: 'Punkte', round: 'Runde', time: 'Zeit',

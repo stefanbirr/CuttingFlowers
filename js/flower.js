@@ -431,8 +431,10 @@ function speedMark(ctx, fast, R, s, color) {
 }
 
 /* Every guide shape passes through its own origin, so a player who traces
-   it lands the blade on the marked cut point at the marked angle. */
-function patternPath(ctx, pattern, R, thick) {
+   it lands the blade on the marked cut point at the marked angle. Exported
+   for the replay screen, which draws this same reference shape against a
+   recorded stroke rather than a live one. */
+export function patternPath(ctx, pattern, R, thick) {
   ctx.beginPath();
   switch (pattern) {
     case 'arc': {
