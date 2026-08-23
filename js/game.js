@@ -414,7 +414,26 @@ export class Game {
     const pts = Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
     this.roundPoints += pts;
     this.cutCount++;
-    this.logEvent('cut', { species: f.species.id, quality: +q.toFixed(2), grade: res.grade.key, pts });
+    // Same four axes the in-round popup already grades against (see
+    // weakestPart in scoring.js) — round tracks which one, this keeps all
+    // of them, so a pattern across many cuts can be told apart from noise.
+    this.logEvent('cut', {
+      species: f.species.id,
+      quality: +q.toFixed(2),
+      grade: res.grade.key,
+      pts,
+      parts: {
+        timing: +res.parts.timing.toFixed(2),
+        point: +res.parts.point.toFixed(2),
+        angle: cut.angle == null ? null : +res.parts.angle.toFixed(2),
+        speed: +res.parts.speed.toFixed(2),
+        pattern: +res.parts.pattern.toFixed(2),
+      },
+      angleMeasured: cut.angle == null ? null : Math.round(res.parts.angleDeg ?? 0),
+      angleTarget: cut.angle,
+      speedMeasured: +rec.speed.toFixed(2),
+      speedBand: cut.speed,
+    });
 
     const piece = rec.piece;
     piece.quality = q;
@@ -645,6 +664,15 @@ export class Game {
         const state = `combo=${e.combo.toFixed(2)} streak=${e.streak}  total=${fmtNum(e.total)}`;
         if (e.type === 'cut') {
           lines.push(`${at}CUT    ${e.species.padEnd(11)} q=${e.quality.toFixed(2)} ${e.grade.padEnd(10)} +${e.pts} pts  ${state}`);
+          const p = e.parts;
+          const axes = [
+            `timing=${p.timing.toFixed(2)}`,
+            `point=${p.point.toFixed(2)}`,
+            p.angle == null ? 'angle=n/a' : `angle=${p.angle.toFixed(2)} (${e.angleMeasured}° of ${e.angleTarget}°)`,
+            `speed=${p.speed.toFixed(2)} (${e.speedMeasured} ${e.speedBand}-band)`,
+            `pattern=${p.pattern.toFixed(2)}`,
+          ];
+          lines.push(`${' '.repeat(10)}${axes.join('  ')}`);
         } else if (e.type === 'sting') {
           lines.push(`${at}STING  ${e.species.padEnd(11)} ${' '.repeat(21)}${e.pts} pts  ${state}`);
         } else if (e.type === 'missed') {
