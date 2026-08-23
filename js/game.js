@@ -76,6 +76,13 @@ export class Game {
     this.startRound();
   }
 
+  /** Another go at the round that just ended the run, rather than back to
+      the first. The score starts from zero — it is a fresh attempt at that
+      round, not a continuation of the run that died on it. */
+  retry() {
+    this.startRun(this.round);
+  }
+
   /** Drill one species: a single stem in the middle, no clock, no quota. */
   startPractice(species) {
     this.mode = 'practice';

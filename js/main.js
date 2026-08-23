@@ -52,7 +52,7 @@ on('btnPause', () => game.pause());
 on('btnResume', () => game.resume());
 on('btnPauseGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnQuit', () => game.quit());
-on('btnRetry', () => { ui.hide('screenOver'); game.startRun(); });
+on('btnRetry', () => { ui.hide('screenOver'); game.retry(); });
 on('btnHome', () => { ui.hide('screenOver'); game.quit(); });
 
 for (const btn of document.querySelectorAll('[data-close]')) {
