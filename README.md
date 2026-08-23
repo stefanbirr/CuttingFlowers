@@ -113,4 +113,12 @@ the repo carries no binary art beyond the generated PNG icons.
 
 ## Licence
 
-MIT — see `LICENSE`.
+**PolyForm Noncommercial 1.0.0** — see `LICENSE`.
+
+Free for any noncommercial purpose: play it, study it, fork it, build on it,
+use it in a classroom. Commercial use needs a separate licence from the
+copyright holder. Note that this is a source-available licence, not an
+open-source one in the OSI sense, so GitHub will show it as "Other".
+
+If you distribute the game or anything built from it, pass along the licence
+and the `Required Notice:` line at the top of `LICENSE`.
