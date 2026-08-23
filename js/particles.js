@@ -1,6 +1,7 @@
 /* Petals, sparks, drifting pollen and floating score labels. */
 
-import { rand, randInt, clamp, TAU, withAlpha } from './util.js';
+import { rand, randInt, clamp, TAU, withAlpha, shade } from './util.js';
+import { petalPath } from './draw.js';
 
 export class Particles {
   constructor(view) {
@@ -61,6 +62,7 @@ export class Particles {
 
   update(dt, time) {
     const d = dt / 1000;
+    this.time = time;
     for (let i = this.bits.length - 1; i >= 0; i--) {
       const b = this.bits[i];
       b.life += dt;
@@ -87,9 +89,13 @@ export class Particles {
   }
 
   drawPollen(ctx) {
+    const t = this.time || 0;
     ctx.save();
     for (const p of this.pollen) {
-      ctx.fillStyle = `rgba(255,246,205,${p.a})`;
+      // Each mote catches the light on its own cycle. Motionless specks at a
+      // fixed opacity read as dust on the lens; a slow flicker reads as air.
+      const twinkle = 0.72 + 0.28 * Math.sin(t / 620 + p.ph * 2.3);
+      ctx.fillStyle = `rgba(255,246,205,${p.a * twinkle})`;
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
     }
     ctx.restore();
@@ -108,9 +114,20 @@ export class Particles {
         ctx.fillStyle = b.color;
         ctx.beginPath(); ctx.arc(0, 0, b.size * k, 0, TAU); ctx.fill();
       } else {
-        ctx.fillStyle = b.color;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, b.size, b.size * 0.6, 0, 0, TAU);
+        // A torn-off petal, not a blob: the same outline the blooms are
+        // built from, squashed across its short axis as it turns so it
+        // reads as tumbling through edge-on rather than spinning flat.
+        // Edge-on twice a turn, straight off its own rotation: physically
+        // what a tumbling petal does, and it costs no extra random draw —
+        // which matters because the game's stream is seeded for the balance
+        // harness, and one more draw per particle shifts every later spawn.
+        const edge = Math.abs(Math.cos(b.rot));
+        const len = b.size * 2.1;
+        ctx.translate(0, len * 0.5);
+        ctx.scale(clamp(0.2 + edge * 0.8, 0.12, 1), 1);
+        // Darker as it turns away, so a drift of petals has some depth.
+        ctx.fillStyle = edge > 0.5 ? b.color : shade(b.color, -26);
+        petalPath(ctx, len, b.size * 0.78, 0.45);
         ctx.fill();
       }
       ctx.restore();

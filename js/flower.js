@@ -64,6 +64,19 @@ export class Flower {
     this.updateGeometry(time);
   }
 
+  /** How far the head has swelled, 0..1. Separate from `open`: the bud
+      grows to full size first, and only then do the petals part. */
+  get headGrown() {
+    return smoothstep(clamp(invLerp(0.05, PHASE.bud, this.life), 0, 1));
+  }
+
+  /** The head's size as actually drawn right now. The guide ring has to be
+      placed against this rather than the full-grown size, or it hangs above
+      a bud that has not got there yet. */
+  get liveHeadSize() {
+    return this.headSize * this.headGrown;
+  }
+
   /** Openness of the bloom, 0..1. */
   get open() {
     return smoothstep(invLerp(PHASE.bud, PHASE.peak, this.life));
@@ -212,7 +225,7 @@ export class Flower {
 
     const grown = this.grown;
     if (grown <= 0.01) return;
-    const headScale = this.headScale * smoothstep(clamp(invLerp(0.05, PHASE.bud, this.life), 0, 1));
+    const headScale = this.headScale * this.headGrown;
 
     ctx.save();
     // Soil shadow, thrown away from wherever the sun happens to be. A low
@@ -288,7 +301,7 @@ export class Flower {
 
   drawRing(ctx, s) {
     // Centre the ring on the bloom itself, which sits above the stem tip.
-    const half = this.headSize * 0.5;
+    const half = this.liveHeadSize * 0.5;
     const cx = this.p2.x + Math.sin(this.tipAngle) * half;
     const cy = this.p2.y - Math.cos(this.tipAngle) * half;
     const r = half + 14 * s;

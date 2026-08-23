@@ -55,6 +55,32 @@ const MOODS = [
 /* What every muted backdrop colour leans toward. */
 const SHADOW = '#1d2620';
 
+/* A tile of faint noise, laid over the finished backdrop.
+
+   Almost the whole scene is big smooth gradients, and those band into
+   visible steps on an 8-bit display — worst in the wide, near-flat stretch
+   of sky, which is exactly where there is nothing else to look at. A little
+   grain breaks the steps up. It is deterministic (hash01, not Math.random)
+   so it cannot disturb a seeded run, and it is baked into the backdrop
+   once a round rather than costing anything per frame. */
+let noiseTile = null;
+function getNoiseTile() {
+  if (noiseTile) return noiseTile;
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  for (let i = 0, p = 0; i < size * size; i++, p += 4) {
+    const v = 128 + (hash01(i * 1.37) - 0.5) * 255;
+    img.data[p] = img.data[p + 1] = img.data[p + 2] = v;
+    img.data[p + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  noiseTile = c;
+  return noiseTile;
+}
+
 export class Scene {
   constructor(view) {
     this.view = view;
@@ -219,6 +245,18 @@ export class Scene {
     vg.addColorStop(1, 'rgba(4,8,6,.56)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, w, h);
+
+    // Grain last, over everything, at a strength that reads as texture
+    // rather than noise — enough to break up the gradient banding.
+    const grain = ctx.createPattern(getNoiseTile(), 'repeat');
+    if (grain) {
+      ctx.save();
+      ctx.globalAlpha = 0.035;
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.fillStyle = grain;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
 
     this.buildTufts();
   }

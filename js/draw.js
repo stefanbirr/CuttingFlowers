@@ -282,7 +282,7 @@ function headHalo(ctx, head, o) {
   ctx.fill();
 }
 
-function petalPath(ctx, len, wid, curl = 0.35) {
+export function petalPath(ctx, len, wid, curl = 0.35) {
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.bezierCurveTo(wid, -len * curl, wid * 0.8, -len * 0.85, 0, -len);
@@ -344,6 +344,38 @@ const HEADS = {
     const p = o.palette;
     const rings = 3;
     ctx.translate(0, -s * 0.55);
+
+    // A closed bud, handing over as the first ring unfurls. Alone among the
+    // heads, a rosette draws nothing at all until it opens — which left a
+    // rose as a bare stem for a third of its life, with the timing ring
+    // hanging around an empty patch of sky.
+    const budK = 1 - clamp(o.open / 0.45, 0, 1);
+    if (budK > 0.01) {
+      const br = s * 0.32 * lerp(0.75, 1, o.open);
+      ctx.save();
+      ctx.globalAlpha = budK;
+      // Colour showing at the tip, where the petals will part first.
+      ctx.fillStyle = p[0];
+      ctx.beginPath();
+      ctx.ellipse(0, -br * 0.30, br * 0.66, br * 0.82, 0, 0, TAU);
+      ctx.fill();
+      // Sepals cupping it from below.
+      const calyx = '#4d7a46';
+      ctx.fillStyle = calyx;
+      ctx.beginPath();
+      ctx.ellipse(0, br * 0.22, br * 0.80, br * 0.66, 0, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha(shade(calyx, -40), 0.55);
+      ctx.lineWidth = Math.max(0.6, br * 0.09);
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * br * 0.42, br * 0.30);
+        ctx.quadraticCurveTo(i * br * 0.85, -br * 0.20, i * br * 0.62, -br * 0.72);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     for (let r = rings - 1; r >= 0; r--) {
       const ringOpen = clamp((o.open - r * 0.16) / 0.55, 0, 1);
       if (ringOpen <= 0) continue;
