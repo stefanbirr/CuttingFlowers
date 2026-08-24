@@ -252,18 +252,28 @@ export class Game {
     const headR = species.head.size * this.view.scale * CFG.headScale * 0.5;
     const margin = 22 * this.view.scale + headR;
     const clearance = this.clearanceForRound();
+    // A weed only needs to not visually overlap — reserving it a flower's
+    // worth of personal space is what let a full hazard field lock new
+    // flowers out entirely (see CFG.hazards.clearanceFactor).
+    const hazardClearance = clearance * CFG.hazards.clearanceFactor;
 
-    let best = null, bestGap = -1;
+    // score(x): margin left over after the tightest neighbour, judging
+    // each against its own required gap rather than one shared distance —
+    // a weed and a flower are no longer the same kind of close.
+    let best = null, bestScore = -Infinity;
     for (let i = 0; i < 14; i++) {
       const x = rand(this.view.w - margin, margin);
-      let gap = Infinity;
-      for (const f of alive) gap = Math.min(gap, Math.abs(f.baseX - x) - headR - f.headSize * 0.5);
-      if (gap > bestGap) { bestGap = gap; best = x; }
-      if (gap > clearance) break;
+      let score = Infinity;
+      for (const f of alive) {
+        const need = f.isHazard ? hazardClearance : clearance;
+        score = Math.min(score, Math.abs(f.baseX - x) - headR - f.headSize * 0.5 - need);
+      }
+      if (score > bestScore) { bestScore = score; best = x; }
+      if (score > 0) break;
     }
     // Nowhere clear enough to sprout without crowding a neighbour — sit
     // this tick out rather than cram two canopies together.
-    if (!ambient && alive.length > 0 && bestGap < clearance) return;
+    if (!ambient && alive.length > 0 && bestScore < 0) return;
 
     // Recorded only now that it is really in the ground — see SpeciesBag.draw.
     this.pool.sprouted(species);

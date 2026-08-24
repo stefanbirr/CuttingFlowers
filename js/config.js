@@ -134,6 +134,17 @@ export const CFG = {
     weightBase: 0.45,
     weightStep: 0.2,
     weightCap: 1.0,
+
+    /* A weed's canopy is small, but spawnClearance was being enforced
+       around it at the same radius as a flower's — full personal space
+       rather than "a line to route around". At aliveCap on a phone-width
+       screen that reserved more room than three weeds plus a full flower
+       budget could ever fit in, so new flowers silently stopped spawning
+       at all: measured at round 9 with its three permitted weeds actually
+       standing, the 4-flower budget landed 0 of 4, every time. This scales
+       *only* the gap required around a hazard neighbour, leaving flower-to-
+       flower spacing (and every other round-difficulty knob) untouched. */
+    clearanceFactor: 0.3,
   },
 
   /* Practice: one chosen flower at a time, dead centre, no clock. */

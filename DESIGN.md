@@ -209,3 +209,43 @@ arc drops 100% → 34% from 4 to 60 points; zigzag runs the other way, 70% →
 slow-band, which lands them in the dense-sampling end where the numbers happen
 to come out right, and the player reported both as feeling good. Worth fixing
 the day either one moves speed band.
+
+## Weeds were reserving a flower's worth of personal space
+
+Confirmed by report, then measured: a weed's spawn-clearance requirement
+used the same round-scaled radius as a flower's, not something scaled to a
+weed's own (much smaller) canopy. On a phone-width screen that reserved
+more room around each weed than the field had to give — placing exactly
+`maxHazardsForRound()` weeds and then trying to fill the flower budget
+around them:
+
+| round | weeds standing | flower budget | flowers that actually fit |
+|------:|----------------:|---------------:|----------------------------:|
+|     5 |               2 |               3 |                            0 |
+|     7 |               2 |               4 |                            0 |
+|     9 |               3 |               4 |                            0 |
+
+At round 9 — the round where `aliveCap` weeds first stand together — a full
+hazard field locked new flowers out **completely**, every time. That
+directly contradicts the claim two sections up: "`maxAlive` counts flowers
+only, so how much there is to cut never depends on how many nettles the
+field happened to deal." In practice it depended on it a great deal — the
+budget just failed silently, so a round quietly played host to fewer
+flowers than its own quota assumed without anything on screen saying so.
+
+Fixed with `CFG.hazards.clearanceFactor` (0.3): the gap required around a
+*hazard* neighbour is now a fraction of a flower's, judged separately per
+neighbour rather than against one shared distance. Flower-to-flower spacing
+is untouched — same numbers as before. Re-measured the same three rounds
+after the fix: 0/0/2 fit around 2/2/3 max weeds — no more total lockouts,
+though a maxed-out hazard field still costs real flower capacity, which is
+the intended shape of the dial, just no longer able to reach zero.
+
+That capacity recovering moves the numbers this file already reports:
+skill-1.0 clear rates at rounds 8/10 went 63%/68% → 77%/70%, because those
+rounds could now actually deliver the flower count their quota was tuned
+against. skillShare held (52–64%, if anything slightly up). `quotaBase` was
+deliberately **not** re-tuned to pull the old numbers back down — those
+were calibrated against a field quietly shorting the player, not the target
+worth defending. Worth watching on the next tuning pass rather than
+guessed at now.
