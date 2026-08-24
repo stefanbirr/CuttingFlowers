@@ -53,44 +53,34 @@ on('btnPause', () => game.pause());
 on('btnResume', () => game.resume());
 on('btnPauseGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnQuit', () => game.quit());
-// Start the round first, hide the panel second. If starting ever throws,
-// the player is left looking at a button they can press again rather than
-// at an empty field with every screen dismissed.
-on('btnRetry', () => { game.retry(); ui.hide('screenOver'); });
-on('btnHome', () => { game.quit(); ui.hide('screenOver'); });
+// Retry/home/next-round are built fresh onto #bouquetActions each time the
+// round-result screen shows (see Game#showResults, ui.showRoundResult) —
+// there's one merged screen now, so there's no second panel to dismiss.
 
-// Wired onto both the bouquet screen (every round, cleared or not) and the
-// over screen (the run's last round) — a run only reaches the second one
-// by failing, so a player who keeps clearing rounds needs the first to
-// ever get a log at all.
-function wireCopyLogButton(id) {
-  const btn = document.getElementById(id);
-  on(id, async () => {
-    const text = game.buildLogText();
-    let ok = true;
+const copyLogBtn = document.getElementById('btnCopyLog');
+on('btnCopyLog', async () => {
+  const text = game.buildLogText();
+  let ok = true;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard API can be blocked (older iOS Safari, some in-app
+    // browsers); a hidden textarea + execCommand still works there.
     try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // Clipboard API can be blocked (older iOS Safari, some in-app
-      // browsers); a hidden textarea + execCommand still works there.
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      } catch { ok = false; }
-    }
-    btn.textContent = t(ok ? 'over.copyLogDone' : 'over.copyLog');
-    btn.disabled = ok;
-    setTimeout(() => { btn.textContent = t('over.copyLog'); btn.disabled = false; }, 1600);
-  });
-}
-wireCopyLogButton('btnCopyLog');
-wireCopyLogButton('btnCopyLogBouquet');
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch { ok = false; }
+  }
+  copyLogBtn.textContent = t(ok ? 'over.copyLogDone' : 'over.copyLog');
+  copyLogBtn.disabled = ok;
+  setTimeout(() => { copyLogBtn.textContent = t('over.copyLog'); copyLogBtn.disabled = false; }, 1600);
+});
 
 /* ── Cut replay ───────────────────────────────────────────────────── */
 

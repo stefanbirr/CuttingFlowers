@@ -8,7 +8,7 @@ import { gradeCut, weakestPart } from './scoring.js';
 import { Scene } from './scene.js';
 import { setLight } from './draw.js';
 import { Particles } from './particles.js';
-import { Bouquet, scoreBouquet } from './bouquet.js';
+import { Bouquet } from './bouquet.js';
 import { coachTips } from './coach.js';
 import { sound } from './audio.js';
 import { store } from './storage.js';
@@ -129,6 +129,10 @@ export class Game {
   }
 
   startRound() {
+    // Every path into a new round dismisses whatever result screen the
+    // previous one left up — retry and level-select included, not just
+    // the explicit "next round" button.
+    ui.hide('screenBouquet');
     this.state = 'playing';
     this.flowers.length = 0;
     this.pieces.length = 0;
@@ -194,6 +198,7 @@ export class Game {
     ui.showHud(false);
     ui.setPracticeMode(false);
     ui.hide('screenPause');
+    ui.hide('screenBouquet');
     ui.setBest(store.get('best'));
     ui.show('screenTitle');
   }
@@ -674,7 +679,6 @@ export class Game {
     this.bouquet = new Bouquet(this.view, this.harvest);
     sound.bind();
 
-    this.lastResult = scoreBouquet(this.harvest, { stings: this.stungCount || 0 });
     this.total += this.roundPoints;
 
     this.cleared = this.roundPoints >= this.quota && this.endReason !== 'stung';
@@ -737,53 +741,43 @@ export class Game {
     return lines.join('\n');
   }
 
-  /** Reveal the results once the arrangement has actually finished building. */
+  /** Reveal the results once the arrangement has actually finished building.
+      One screen either way: a cleared round offers Next round; one that
+      isn't ends the run right here, with the same bookkeeping gameOver()
+      used to do (best score, which round level select unlocks next) folded
+      in, and coachTips (coach.js) standing in for a breakdown of why. */
   showResults() {
     this.panelShown = true;
-    const result = this.lastResult;
-    const actions = this.cleared
-      ? [{ label: t('bouquet.nextRound', { round: this.round + 1 }), primary: true, onClick: () => this.nextRound() }]
-      : [{ label: t('bouquet.seeResult'), primary: true, onClick: () => this.gameOver() }];
-    ui.showBouquet({
-      round: this.round,
-      result,
-      roundPoints: this.roundPoints,
-      actions,
+
+    if (this.cleared) {
+      ui.showRoundResult({
+        round: this.round, cleared: true,
+        points: this.roundPoints, quota: this.quota,
+        actions: [{ label: t('bouquet.nextRound', { round: this.round + 1 }), primary: true, onClick: () => this.nextRound() }],
+      });
+      return;
+    }
+
+    // The highest round actually unlocked for level select is the one
+    // before this — round - 1, never the round that just failed.
+    store.recordRun(this.total, this.round - 1);
+    sound.fail();
+
+    ui.showRoundResult({
+      round: this.round, cleared: false, stung: this.endReason === 'stung',
+      points: this.roundPoints, quota: this.quota,
+      tips: coachTips(this.roundLog),
+      actions: [
+        { label: t('over.retry'), primary: true, onClick: () => this.retry() },
+        { label: t('over.home'), primary: false, onClick: () => this.quit() },
+      ],
     });
   }
 
   nextRound() {
-    ui.hide('screenBouquet');
     this.round++;
     this.bouquet = null;
     this.startRound();
-  }
-
-  gameOver() {
-    ui.hide('screenBouquet');
-    this.state = 'over';
-    this.bouquet = null;
-    const best = store.get('best');
-    const newBest = this.total > best;
-    // gameOver() only runs on a round that was NOT cleared (see showResults()),
-    // so the highest round actually unlocked for level select is the one
-    // before this — round - 1, never the failed round itself.
-    store.recordRun(this.total, this.round - 1);
-
-    const reason = this.endReason === 'stung'
-      ? t('over.reasonStung', { round: this.round })
-      : t('over.reasonQuota', {
-          round: this.round,
-          quota: fmtNum(this.quota),
-          total: fmtNum(this.roundPoints),
-        });
-
-    sound.fail();
-    ui.showOver({
-      title: newBest ? t('over.record') : t('over.runOver'),
-      reason, score: this.total, round: this.round, best: Math.max(best, this.total), newBest,
-      tips: coachTips(this.roundLog),
-    });
   }
 
   /* ── Render ─────────────────────────────────────────────────────── */

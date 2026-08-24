@@ -386,8 +386,7 @@ html, body {
 }
 .bouquet-head { text-align: center; }
 .bouquet-head h2 { margin: 0; font-size: 19px; text-shadow: 0 2px 10px rgba(0, 0, 0, .7); }
-.stars { margin-top: 6px; font-size: 22px; letter-spacing: 4px; color: var(--gold); text-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
-.stars .off { color: rgba(255, 255, 255, .18); }
+@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } }
 
 .bouquet-panel {
   width: min(430px, 100%);
@@ -398,47 +397,39 @@ html, body {
   border: 1px solid var(--stroke);
   box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
 }
-.breakdown { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-.bd-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  animation: slideIn .3s ease both;
-}
-@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } }
-.bd-row .bd-label { color: #cfe0cc; }
-.bd-row .bd-note { color: var(--ink-dim); font-size: 11px; }
-.bd-row .bd-val {
-  margin-left: auto;
+
+/* Cleared / not cleared — the one thing the screen has to say before
+   anything else. */
+.result-status {
+  margin-top: 6px;
+  font-size: 15px;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--leaf-bright);
+  letter-spacing: .02em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .6);
 }
-.bd-row .bd-val.neg { color: var(--danger); }
-.bouquet-total {
+.result-status.cleared { color: var(--leaf-bright); }
+.result-status.failed { color: var(--danger); }
+
+/* Goal vs. reached — only rendered on a miss, where it's the headline. */
+.result-points { margin-bottom: 4px; }
+.result-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-top: 10px;
-  border-top: 1px solid var(--stroke);
+  padding: 3px 0;
   font-size: 13px;
   color: var(--ink-dim);
 }
-.bouquet-total strong { font-size: 26px; color: var(--gold); font-variant-numeric: tabular-nums; }
-
-.final-score {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 10px;
-  margin: 6px 0 2px;
-  color: var(--ink-dim);
-  font-size: 13px;
+.result-row strong { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.result-bar {
+  height: 8px;
+  margin: 6px 0 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .08);
+  overflow: hidden;
 }
-.final-score strong { font-size: 40px; color: var(--gold); font-variant-numeric: tabular-nums; }
-.final-sub { font-size: 12px; color: var(--ink-dim); margin-bottom: 14px; }
-.over-reason { color: #d8e6d5; font-size: 14px; margin: 0 0 10px; }
+.result-bar-fill { height: 100%; background: var(--danger); border-radius: 5px; }
+.result-note { margin: 0 0 10px; font-size: 12px; color: var(--ink-dim); }
 
 .coach-tips { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; text-align: left; }
 .coach-tip {

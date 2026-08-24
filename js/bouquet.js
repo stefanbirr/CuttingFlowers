@@ -1,69 +1,8 @@
-/* Binding the round's harvest into a bouquet: composition scoring plus
-   the animated arrangement drawn on the canvas. */
+/* Binding the round's harvest into a bouquet: the animated arrangement
+   drawn on the canvas behind the round-result panel. */
 
 import { clamp, lerp, rand, TAU, smoothstep } from './util.js';
 import { drawStem, drawHead } from './draw.js';
-
-/* ── Scoring ──────────────────────────────────────────────────────── */
-
-/* Rows carry a translation key + interpolation vars rather than baked
-   English text — ui.js renders them through i18n at display time, so a
-   language switch never needs this scoring pass to run again. Purely a
-   description of what you cut: every point already came from the cuts
-   themselves, so nothing here adds to the round's score. */
-export function scoreBouquet(stems, { stings = 0 } = {}) {
-  const rows = [];
-  const n = stems.length;
-
-  if (n === 0) {
-    return { rows: [{ labelKey: 'row.emptyLabel', noteKey: 'row.emptyNote' }], stars: 0, nameKey: null };
-  }
-
-  const avgQ = stems.reduce((s, x) => s + x.quality, 0) / n;
-  rows.push({ labelKey: 'row.craft', noteKey: 'row.craftNote', noteVars: { pct: Math.round(avgQ * 100) } });
-
-  rows.push({ labelKey: 'row.fullness', noteKey: 'row.fullnessNote', noteN: n });
-
-  const greens = stems.filter((s) => s.species.kind === 'green').length;
-  const ratio = greens / n;
-  rows.push({
-    labelKey: 'row.foliage',
-    noteKey: greens === 0 ? 'row.foliageNone' : 'row.foliageNote',
-    noteVars: { pct: Math.round(ratio * 100) },
-  });
-
-  const kinds = new Set(stems.map((s) => s.species.id));
-  rows.push({ labelKey: 'row.variety', noteKey: 'row.varietyNote', noteN: kinds.size });
-
-  const lens = stems.map((s) => s.stemLen);
-  const mean = lens.reduce((a, b) => a + b, 0) / n;
-  const dev = Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / n) / (mean || 1);
-  rows.push({ labelKey: 'row.harmony', noteKey: dev < 0.18 ? 'row.harmonyEven' : 'row.harmonyUneven' });
-
-  const fresh = stems.reduce((s, x) => s + (x.timing ?? 0), 0) / n;
-  rows.push({ labelKey: 'row.freshness', noteKey: 'row.freshnessNote', noteVars: { pct: Math.round(fresh * 100) } });
-
-  if (stings === 0) rows.push({ labelKey: 'row.unstung', noteKey: 'row.unstungNote' });
-  else rows.push({ labelKey: 'row.stings', noteKey: 'row.stingsNote', noteN: stings });
-
-  // A star rating independent of score: how clean the cuts were on
-  // average, docked a star per weed sting.
-  const stars = clamp(Math.round(avgQ * 5) - stings, 0, 5);
-  return { rows, stars, avgQ, nameKey: bouquetNameKey(stems, avgQ) };
-}
-
-function bouquetNameKey(stems, avgQ) {
-  const n = stems.length;
-  const kinds = new Set(stems.map((s) => s.species.id)).size;
-  const greens = stems.filter((s) => s.species.kind === 'green').length / n;
-  if (n <= 3) return 'sprig';
-  if (avgQ > 0.88 && n >= 10) return 'masterpiece';
-  if (kinds >= 5) return 'cottage';
-  if (greens > 0.5) return 'foliage';
-  if (greens < 0.1) return 'allBlooms';
-  if (avgQ < 0.45) return 'rustic';
-  return 'handsome';
-}
 
 /* ── Arrangement ──────────────────────────────────────────────────── */
 

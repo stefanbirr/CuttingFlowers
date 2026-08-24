@@ -28,14 +28,9 @@ export const ui = {
     bestScore: $('bestScore'),
     guideList: $('guideList'),
     bouquetTitle: $('bouquetTitle'),
-    bouquetStars: $('bouquetStars'),
-    bouquetBreakdown: $('bouquetBreakdown'),
-    bouquetTotal: $('bouquetTotal'),
+    resultStatus: $('resultStatus'),
+    resultPoints: $('resultPoints'),
     bouquetActions: $('bouquetActions'),
-    overTitle: $('overTitle'),
-    overReason: $('overReason'),
-    finalScore: $('finalScore'),
-    finalSub: $('finalSub'),
     overCoach: $('overCoach'),
     btnReplay: $('btnReplay'),
     replayTitle: $('replayTitle'),
@@ -256,12 +251,7 @@ export const ui = {
     set('btnPauseGuide', t('pause.guide'));
     set('btnQuit', t('pause.quit'));
 
-    set('bouquetTotalLabel', t('bouquet.total'));
-    set('finalScoreLabel', t('over.total'));
-    set('btnRetry', t('over.retry'));
-    set('btnHome', t('over.home'));
     set('btnCopyLog', t('over.copyLog'));
-    set('btnCopyLogBouquet', t('over.copyLog'));
     set('btnReplay', t('over.replay'));
     set('replayTitle', t('replay.title'));
     set('replayLegendIdeal', t('replay.legendIdeal'));
@@ -275,29 +265,30 @@ export const ui = {
     if (this._lastQuota) this.setQuota(this._lastQuota.score, this._lastQuota.quota);
   },
 
-  /* ── Results ─────────────────────────────────────────────────── */
+  /* ── Round result ────────────────────────────────────────────── */
 
-  showBouquet({ round, result, roundPoints, actions }) {
-    const name = result.nameKey ? t(`bouquet.name.${result.nameKey}`) : '';
-    this.el.bouquetTitle.textContent = t('bouquet.roundTitle', { round, name });
-    this.el.bouquetStars.innerHTML = [0, 1, 2, 3, 4].
-      map((i) => `<span class="${i < result.stars ? '' : 'off'}">★</span>`).join('');
+  /** One screen for how a round ended, cleared or not. A clear needs
+      nothing more than saying so — the goal/points comparison earns its
+      place only on a miss, where it's the headline, with any coaching
+      (coachTips, coach.js) right underneath it. */
+  showRoundResult({ round, cleared, points, quota, stung = false, tips = [], actions }) {
+    this.el.bouquetTitle.textContent = t('bouquet.roundTitle', { round });
+    this.el.resultStatus.textContent = t(cleared ? 'result.cleared' : 'result.notCleared');
+    this.el.resultStatus.className = `result-status ${cleared ? 'cleared' : 'failed'}`;
 
-    // Purely descriptive — every point already came from the cuts
-    // themselves (see bouquet.js), so these rows carry no value badge.
-    this.el.bouquetBreakdown.innerHTML = result.rows.map((r, i) => {
-      const label = t(`bouquet.${r.labelKey}`);
-      const note = r.noteN != null
-        ? plural(`bouquet.${r.noteKey}`, r.noteN)
-        : t(`bouquet.${r.noteKey}`, r.noteVars);
-      return `
-      <div class="bd-row" style="animation-delay:${i * 55}ms">
-        <span class="bd-label">${label}</span>
-        <span class="bd-note">${note}</span>
-      </div>`;
-    }).join('');
+    if (cleared) {
+      this.el.resultPoints.innerHTML = '';
+    } else {
+      const pct = quota ? clamp(points / quota, 0, 1) : 0;
+      this.el.resultPoints.innerHTML = `
+        <div class="result-row"><span>${t('result.goal')}</span><strong>${fmtNum(quota)}</strong></div>
+        <div class="result-row"><span>${t('result.reached')}</span><strong>${fmtNum(points)}</strong></div>
+        <div class="result-bar"><div class="result-bar-fill" style="width:${Math.round(pct * 100)}%"></div></div>
+        ${stung ? `<p class="result-note">${t('result.stung')}</p>` : ''}`;
+    }
 
-    this.el.bouquetTotal.textContent = fmtNum(roundPoints);
+    this.el.overCoach.innerHTML = tips.map((tip) => `<p class="coach-tip">${tip}</p>`).join('');
+
     this.el.bouquetActions.innerHTML = '';
     for (const a of actions) {
       const b = document.createElement('button');
@@ -307,17 +298,6 @@ export const ui = {
       this.el.bouquetActions.appendChild(b);
     }
     this.show('screenBouquet');
-  },
-
-  showOver({ title, reason, score, round, best, newBest, tips = [] }) {
-    this.el.overTitle.textContent = title;
-    this.el.overReason.textContent = reason;
-    this.el.finalScore.textContent = fmtNum(score);
-    this.el.finalSub.textContent = newBest
-      ? t('over.newBest')
-      : t('over.reachedRound', { round, best: fmtNum(best) });
-    this.el.overCoach.innerHTML = tips.map((tip) => `<p class="coach-tip">${tip}</p>`).join('');
-    this.show('screenOver');
   },
 
   /* ── Replay ──────────────────────────────────────────────────── */
