@@ -167,13 +167,83 @@ export class Blade {
 
 /* ── Gesture shape analysis ──────────────────────────────────────── */
 
+/** Redraw a stroke as a fixed number of evenly spaced points along its own
+    length, then smooth it lightly. Pointer jitter is per-sample and
+    uncorrelated, so averaging neighbours removes it while leaving real
+    curvature alone. Everything measured off this is a property of the
+    shape rather than of how many samples the stroke happened to produce —
+    which is decided by swipe speed, not by how the stroke looked. */
+function normalisePath(points, n = 32) {
+  if (points.length < 2) return null;
+  const cum = [0];
+  for (let i = 1; i < points.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y));
+  }
+  const total = cum[cum.length - 1];
+  if (total < 1e-6) return null;
+
+  const even = [];
+  let j = 0;
+  for (let k = 0; k < n; k++) {
+    const target = (total * k) / (n - 1);
+    while (j < points.length - 2 && cum[j + 1] < target) j++;
+    const seg = (cum[j + 1] - cum[j]) || 1;
+    const f = clamp((target - cum[j]) / seg, 0, 1);
+    even.push({
+      x: points[j].x + (points[j + 1].x - points[j].x) * f,
+      y: points[j].y + (points[j + 1].y - points[j].y) * f,
+    });
+  }
+  return even.map((p, i) => {
+    const a = even[Math.max(0, i - 1)];
+    const b = even[Math.min(even.length - 1, i + 1)];
+    return { x: (a.x + p.x * 2 + b.x) / 4, y: (a.y + p.y * 2 + b.y) / 4 };
+  });
+}
+
+/** How far the stroke wandered off the straight line joining its own ends,
+    and how much of its travel actually got it anywhere. Both are ratios of
+    the stroke's own size, so they say the same thing about a gesture
+    whether it was flicked in four samples or dragged in sixty. */
+function strayness(points) {
+  const pts = normalisePath(points);
+  // No stroke to speak of: treat it as trivially clean rather than punish
+  // a cut the slicer only registered on a couple of samples.
+  if (!pts) return { strayRatio: 0, efficiency: 1 };
+  const p0 = pts[0], pN = pts[pts.length - 1];
+  const dx = pN.x - p0.x, dy = pN.y - p0.y;
+  const chord = Math.hypot(dx, dy);
+  // Ended up back where it started — there is no line to be straight along.
+  if (chord < 1) return { strayRatio: 1, efficiency: 0 };
+
+  let walked = 0;
+  for (let i = 1; i < pts.length; i++) {
+    walked += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  const ux = dx / chord, uy = dy / chord;
+  let sum = 0;
+  for (const p of pts) {
+    const off = (p.x - p0.x) * -uy + (p.y - p0.y) * ux;
+    sum += off * off;
+  }
+  return {
+    strayRatio: Math.sqrt(sum / pts.length) / chord,
+    efficiency: chord / Math.max(walked, chord),
+  };
+}
+
 /**
  * Reduce a stroke to a few numbers describing its shape.
- * @returns {{absTurn:number, netTurn:number, reversals:number, span:number, kind:string}}
+ * @returns {{absTurn:number, netTurn:number, reversals:number, span:number,
+ *            strayRatio:number, efficiency:number, kind:string}}
  */
 export function analyseShape(points, scale = 1) {
   const pts = resample(points, 13 * scale);
-  const out = { absTurn: 0, netTurn: 0, reversals: 0, span: 0, dirNet: null, kind: 'straight' };
+  const { strayRatio, efficiency } = strayness(points);
+  const out = {
+    absTurn: 0, netTurn: 0, reversals: 0, span: 0, dirNet: null,
+    strayRatio, efficiency, kind: 'straight',
+  };
   if (pts.length < 3) {
     if (pts.length === 2) out.span = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
     return out;
@@ -217,8 +287,16 @@ export function analyseShape(points, scale = 1) {
 /** 0..1 for how well a stroke matches the demanded pattern. */
 export function patternScore(required, shape) {
   switch (required) {
-    case 'straight':
-      return clamp(1 - Math.max(0, shape.absTurn - 0.35) / 1.15, 0.08, 1);
+    // Judged on whether the stroke looks like a straight line, not on how
+    // much the hand turned getting there. Summed turning was the old test
+    // and it graded sampling density rather than shape: the very same line
+    // scored 100% flicked and 8% drawn slowly, because a slower swipe emits
+    // more points and each one carries a little pointer jitter to add up.
+    case 'straight': {
+      const off = clamp((shape.strayRatio - 0.035) / 0.16, 0, 1);   // wandered off its own line
+      const back = clamp((0.985 - shape.efficiency) / 0.16, 0, 1);  // doubled back on itself
+      return clamp(1 - Math.max(off, back), 0.08, 1);
+    }
 
     case 'arc': {
       const bend = Math.abs(shape.netTurn);
@@ -236,9 +314,13 @@ export function patternScore(required, shape) {
       return clamp(r * 0.6 + energy * 0.4, 0.05, 1);
     }
 
-    case 'cross':
-      // Judged across two strokes; per-stroke we only ask for cleanliness.
-      return clamp(1 - Math.max(0, shape.absTurn - 0.5) / 1.4, 0.1, 1);
+    case 'cross': {
+      // Judged across two strokes; per-stroke we only ask for cleanliness,
+      // and a little looser than a demanded straight cut.
+      const off = clamp((shape.strayRatio - 0.05) / 0.20, 0, 1);
+      const back = clamp((0.98 - shape.efficiency) / 0.18, 0, 1);
+      return clamp(1 - Math.max(off, back), 0.1, 1);
+    }
 
     default:
       return 1;

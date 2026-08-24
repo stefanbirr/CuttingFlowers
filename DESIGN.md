@@ -166,3 +166,46 @@ quota to move with them.
 One combination is worth avoiding on its own merits: **fast plus zigzag**.
 Sawing is a repeated motion, and asking for it at whip speed cost about five
 points of clear rate by itself. Pampas grass is a slow saw for that reason.
+
+## The bot cannot feel everything the player feels
+
+The pattern score for a straight cut used to be `absTurn` — the total turning
+summed over every vertex of the stroke. That is a **sum**, so it grows with
+however many points the stroke was sampled at, and sampling density is set by
+swipe speed, not by shape. The identical straight line scored:
+
+| points in stroke | 4 | 10 | 24 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|
+| old Form score | 100% | 42% | 17% | 8% | 8% |
+
+A flick scored perfectly, a careful draw scored the floor, and in between it
+swung between 8% and 86% run to run. From the player's side that is not a
+technique they can practise — it is a coin flip, which is precisely what the
+northstar forbids.
+
+**None of the harness numbers moved when this was fixed.** The bot's strokes
+are synthetic: clean, sparse, jitter-free. It scored a mean of **1.000** on
+straight patterns with 0% at the floor, across every skill level, before and
+after. A real player's log over two rounds averaged **0.43, with 37% of cuts
+at the floor.** The balance had been tuned for years of sessions against a
+player that could not experience the defect, so the game was roughly 25%
+harder for a human than the harness ever showed — and the fix moves real play
+*onto* the tuned target rather than past it. `quotaBase` did not change.
+
+The lesson worth keeping: **the bot validates balance, not feel.** Anything
+that depends on how a real gesture is captured — sampling, jitter, coalesced
+events, the shape of a human motion — is invisible to it by construction.
+When a player reports something feeling wrong and the harness says the round
+is fine, the harness is not the tiebreaker. Reach for a captured stroke (the
+run log records one per cut) before trusting it.
+
+Straight and cross now score on two ratios of the stroke's own size — how far
+it strayed from the line joining its ends, and how much of its travel got it
+anywhere — both properties of the shape rather than of the sampling.
+
+**Arc and zigzag still use `absTurn` and carry the same latent bug** (an ideal
+arc drops 100% → 34% from 4 to 60 points; zigzag runs the other way, 70% →
+99%). They were left alone deliberately: the species that demand them are
+slow-band, which lands them in the dense-sampling end where the numbers happen
+to come out right, and the player reported both as feeling good. Worth fixing
+the day either one moves speed band.
