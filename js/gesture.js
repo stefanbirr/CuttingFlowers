@@ -126,7 +126,9 @@ export class Blade {
     let dist = 0;
     for (let k = lo + 1; k <= hi; k++) dist += Math.hypot(p[k].x - p[k - 1].x, p[k].y - p[k - 1].y);
     const dur = Math.max(8, p[hi].t - p[lo].t);
-    return (dist / dur) * 1000 / this.view.h;
+    // Against the scale everything is drawn at, not the screen's height —
+    // see CFG.speedRef for why that difference matters on a rotation.
+    return (dist / dur) * 1000 / (CFG.speedRef * this.view.scale);
   }
 
   /** Index of the most recently pushed point. */

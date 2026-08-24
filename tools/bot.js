@@ -293,9 +293,11 @@ export class Bot {
   buildPath(plan, { crossSecond = false } = {}) {
     const view = this.game.view;
     const s = view.scale;
-    // Blade speed is read in screen-heights per second, and samples land one
-    // simulated frame apart, so spacing is what sets the measured speed.
-    const perSample = Math.max(2, plan.speed * view.h * (this.dt / 1000));
+    // Blade speed is read against CFG.speedRef * view.scale (gesture.js's
+    // speedAt), and samples land one simulated frame apart, so spacing is
+    // what sets the measured speed. This has to use the same unit the game
+    // measures in or the bot aims at a band it then misses.
+    const perSample = Math.max(2, plan.speed * CFG.speedRef * s * (this.dt / 1000));
     const wantLen = clamp(perSample * 7, 70 * s, 330 * s);
     const samples = clamp(Math.round(wantLen / perSample), 4, 32);
     const L = samples * perSample;

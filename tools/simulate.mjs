@@ -144,7 +144,10 @@ const { server, port } = await serve(ROOT);
 const browser = await chromium.launch();
 
 try {
-  const page = await browser.newPage({ viewport: { width: 393, height: 839 } });
+  // A phone held the way the game now enforces (see the .rotate-gate rules
+  // and manifest orientation) — the harness has to measure the shape of
+  // window players actually get.
+  const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e.message)));
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });

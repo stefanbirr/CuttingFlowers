@@ -68,7 +68,10 @@ function pearson(xs, ys) {
 }
 
 try {
-  const page = await browser.newPage({ viewport: { width: 393, height: 839 } });
+  // A phone held the way the game now enforces (see the .rotate-gate rules
+  // and manifest orientation) — the harness has to measure the shape of
+  // window players actually get.
+  const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.setItem('bloomblade.v1',
     JSON.stringify({ seenTutorial: true, sound: false, lang: 'en', bestRound: 10 })));

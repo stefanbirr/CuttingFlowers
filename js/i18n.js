@@ -145,7 +145,7 @@ const STR = {
       combo: 'combo',
       stems: 'stems',
     },
-    rotate: 'Turn upright — the flowers grow tall.',
+    rotate: 'Turn your device sideways — the meadow needs the width.',
     grade: {
       immaculate: 'Immaculate', clean: 'Clean', good: 'Good', ragged: 'Ragged', butchered: 'Butchered',
     },
@@ -279,7 +279,7 @@ const STR = {
       combo: 'Kombo',
       stems: 'Stiele',
     },
-    rotate: 'Hochkant halten — die Blumen wachsen in die Höhe.',
+    rotate: 'Dreh dein Gerät quer — die Wiese braucht die Breite.',
     grade: {
       immaculate: 'Makellos', clean: 'Sauber', good: 'Gut', ragged: 'Zerrupft', butchered: 'Verschnitten',
     },

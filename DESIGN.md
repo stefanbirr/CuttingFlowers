@@ -249,3 +249,48 @@ deliberately **not** re-tuned to pull the old numbers back down — those
 were calibrated against a field quietly shorting the player, not the target
 worth defending. Worth watching on the next tuning pass rather than
 guessed at now.
+
+## Landscape, and the two units that were secretly portrait-only
+
+The game now enforces landscape (manifest `orientation`, a
+`screen.orientation.lock()` attempt, and a full-screen gate that pauses the
+round — the gate is the only one of the three iOS honours). Two measured
+things had to be fixed first, because both silently assumed a tall window:
+
+**Blade speed was reported in screen-heights per second.** Screen height
+flips on rotation, so the identical 150px thumb flick measured **2.59×
+faster** in landscape and every cut read as a fast one. It is now measured
+against `CFG.speedRef * view.scale` — `view.scale` sizes everything the
+player is actually asked to trace, and is orientation-invariant. Same drag,
+after: phone portrait 0.45, phone landscape 0.45, laptop 0.45. Before:
+0.37 / 0.96 / 0.42.
+
+**`spawnClearance` was a fraction of screen height** — a strange unit for a
+sideways gap. Rotating dropped it 126px → 58px while doubling the field
+width. Now `134 * view.scale`, which reproduces the portrait value exactly.
+
+### Portrait was starving the field, and the quota knew
+
+The real surprise: a 393px-wide phone cannot hold `maxAlive` stems apart at
+the required clearance, so portrait was **chronically spawn-starved** — the
+field quietly delivered fewer flowers than its own budget allowed, and the
+quota curve had been fitted to that shortfall. Landscape has the width, so
+the budget actually fills, and every round came back at ~100% clear across
+every skill level.
+
+`quotaBase` 880 → 1500 restores real pressure. Measured over 720 rounds:
+
+| | portrait (old) | landscape (now) |
+|---|---:|---:|
+| skillShare r5 / r8 / r10 | 52% / 64% / 61% | 50% / 77% / 80% |
+| ordered r5 / r8 / r10 | 75% / 83% / 76% | 72% / 77% / 81% |
+
+Skill decides **more** in landscape than it ever did in portrait, which is
+the northstar moving the right way — the starved field had been adding luck.
+
+**Still owed a proper pass.** Raising the quota barely moves a top bot's
+clear rate, because the round ends the moment the quota is met and a
+generous field just supplies more cuts (21.6 → 26.9 cuts as base went
+1100 → 1500). The separation between neighbouring skill levels is flatter
+here than portrait's was. The lever worth reaching for next is probably
+`maxAlive` or the spawn gap, not the quota — the field, not the target.

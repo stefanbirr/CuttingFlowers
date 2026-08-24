@@ -80,7 +80,12 @@ export class Game {
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     const v = this.view;
     v.w = w; v.h = h; v.dpr = dpr;
-    v.scale = clamp(Math.min(w / 420, h / 760), 0.68, 1.65);
+    // Off the narrow side of the window, whichever that currently is. The
+    // old reference was a portrait phone (min(w/420, h/760)), so rotating
+    // one dropped scale onto its floor and shrank every bloom; keying off
+    // min(w,h) gives a phone the same scale held either way (0.936 vs
+    // 0.929) and leaves portrait exactly where it was.
+    v.scale = clamp(Math.min(w, h) / 420, 0.68, 1.65);
     v.groundY = h * CFG.groundY;
 
     this.canvas.width = Math.round(w * dpr);
@@ -226,7 +231,7 @@ export class Game {
   /** Required gap between canopies, relaxing slowly as rounds get harder. */
   clearanceForRound() {
     const ease = Math.max(CFG.clearanceFloor, 1 - (this.round - 1) * CFG.clearanceEase);
-    return CFG.spawnClearance * this.view.h * ease;
+    return CFG.spawnClearance * this.view.scale * ease;
   }
 
   spawn(ambient = false) {

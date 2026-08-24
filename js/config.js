@@ -7,6 +7,18 @@ export const CFG = {
   maxStemH: 0.60,         // tallest a stem may reach, as a fraction of height
   headScale: 1.8,         // blooms are drawn well above life size so they are thumb-sized
 
+  /* Blade speed is reported in multiples of this many CSS pixels per second,
+     times view.scale — NOT in screen-heights, which is what it used to be.
+     Screen height flips when the device rotates, so the identical thumb
+     flick measured 2.6x faster in landscape than in portrait and every cut
+     read as a fast one. Everything the player is actually asked to trace
+     (the guide band, the bloom, the stem's thickness) is sized by
+     view.scale instead, and view.scale is orientation-invariant, so this
+     keeps a gesture worth the same wherever it is made. Calibrated so a
+     portrait phone reads exactly as it did before: 896 * 0.936 = 839px,
+     which was that device's height. */
+  speedRef: 896,
+
   /* Round pacing */
   roundSeconds: 45,
   strikesAllowed: 3,
@@ -25,9 +37,14 @@ export const CFG = {
   lifespanFloor: 0.62,
 
   /* Spacing: new stems only sprout where their canopy clears its neighbours
-     by this many screen-heights, so an accidental swipe can't clip the
-     flower next door. Measured edge-to-edge between head radii. */
-  spawnClearance: 0.15,
+     by this many pixels at scale 1, so an accidental swipe can't clip the
+     flower next door. Measured edge-to-edge between head radii, and scaled
+     by view.scale because that is what sets a canopy's size — it used to be
+     a fraction of screen *height*, which is a strange unit for a sideways
+     gap and broke outright on a rotation: the same phone turned landscape
+     dropped the gap from 126px to 58px while handing the field twice the
+     width to fill. 134 * 0.936 = 125px, the portrait value it replaces. */
+  spawnClearance: 134,
   /* Later rounds may pack a little tighter, or the field starves and the
      quota becomes unreachable. Multiplier on the clearance, per round. */
   clearanceEase: 0.06,
@@ -60,8 +77,18 @@ export const CFG = {
      held under the ~10%/round the spawn gap alone can still buy, since the
      quota is a hard pass/fail and spawn luck (species mix, layout) varies
      run to run — the margin is there so an unlucky round is still winnable
-     on skill, not just a lucky one. */
-  quotaBase: 880,
+     on skill, not just a lucky one.
+
+     Raised 880 -> 1500 when the game moved to landscape. Not a difficulty
+     decision so much as a correction: a portrait phone is too narrow to
+     hold maxAlive stems apart at the required clearance, so it was
+     chronically spawn-starved and the curve had been fitted to a field
+     quietly delivering less than its own budget. Landscape has the width,
+     fills the budget, and handed every round back at ~100% clear. This
+     restores real pressure but the curve still wants a proper pass — see
+     DESIGN.md, the separation between skill levels is flatter here than
+     portrait's was. */
+  quotaBase: 1500,
   quotaGrowth: 1.26,
   quotaGrowthLate: 1.08,
   quotaPlateauRound: 7,   // the round maxAlive first reaches maxAliveCap

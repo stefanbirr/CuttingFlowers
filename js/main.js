@@ -171,13 +171,30 @@ window.addEventListener('keydown', firstGesture, { passive: true });
 
 /* ── Layout ───────────────────────────────────────────────────────── */
 
+/* The game is tuned for one shape of window — see CFG.speedRef and the
+   .rotate-gate rules. Where the browser will actually hold the device
+   there, ask it to; everywhere else (notably every iOS browser, which has
+   no lock API and ignores the manifest) the gate below is what enforces
+   it. Wrapped because the call rejects rather than throws on desktop and
+   outside fullscreen, and that rejection is expected, not a fault. */
+function tryLockLandscape() {
+  try {
+    screen.orientation?.lock?.('landscape')?.catch(() => {});
+  } catch { /* unsupported — the gate covers it */ }
+}
+tryLockLandscape();
+
 let resizeTimer = null;
 function relayout() {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     game.resize();
-    const landscapeSqueeze = window.innerHeight < 420 && window.innerWidth > window.innerHeight;
-    ui.toggle('rotateNote', landscapeSqueeze);
+    // Taller than it is wide: hold everything until it is turned back.
+    // Pausing matters — the clock would otherwise keep running behind a
+    // screen the player cannot see or cut through.
+    const portrait = window.innerHeight > window.innerWidth;
+    ui.toggle('rotateNote', portrait);
+    if (portrait) game.pause();
   }, 90);
 }
 window.addEventListener('resize', relayout);
