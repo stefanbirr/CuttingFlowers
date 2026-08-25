@@ -94,10 +94,23 @@ export class Game {
     this.canvas.style.height = `${h}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    this.basket = { x: w - 40 * v.scale, y: h - 44 * v.scale };
+    this.basket = { x: w - 40 * v.scale, y: 44 * v.scale };
+    this.locateBasket();
     this.scene.build();
     this.fx.seedPollen(Math.round(22 * v.scale));
     if (this.bouquet) this.bouquet.layout();
+  }
+
+  /** Petals fly toward wherever the stem counter actually sits in the HUD
+      (top strip, moved there to stop it overlapping flowers down by the
+      field edge) — read its real position instead of hardcoding one. Only
+      works once the HUD is actually laid out and visible, so resize() also
+      sets a same-shaped fallback for the window before a round starts. */
+  locateBasket() {
+    const basketEl = document.querySelector('.hud-basket');
+    if (!basketEl) return;
+    const r = basketEl.getBoundingClientRect();
+    if (r.width) this.basket = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
   /* ── Round lifecycle ────────────────────────────────────────────── */
@@ -167,6 +180,7 @@ export class Game {
     this.blade.enabled = true;
 
     ui.showHud(true);
+    this.locateBasket();
     ui.setPracticeMode(this.mode === 'practice', this.practiceSpecies);
     ui.setScore(this.total);
     ui.setRound(this.round);

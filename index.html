@@ -41,8 +41,15 @@
   </div>
 
   <div class="hud-quota">
-    <div class="quota-bar"><div class="quota-fill" id="quotaFill"></div></div>
-    <span class="quota-text" id="quotaText">Goal 600</span>
+    <div class="strikes" id="strikes" aria-label="Strikes"></div>
+    <div class="quota-progress" id="quotaProgress">
+      <div class="quota-bar"><div class="quota-fill" id="quotaFill"></div></div>
+      <span class="quota-text" id="quotaText">Goal 600</span>
+    </div>
+    <div class="hud-basket">
+      <span id="basketCount">0</span>
+      <span class="basket-sub" id="basketLabel">stems</span>
+    </div>
   </div>
 
   <div class="hud-combo" id="hudCombo"><span id="comboValue">x2</span> <span id="comboLabel">combo</span></div>
@@ -53,13 +60,6 @@
     <div class="practice-hint" id="practiceHint"></div>
     <div class="practice-stats" id="practiceStats">no cuts yet</div>
   </div>
-
-  <div class="hud-basket">
-    <span id="basketCount">0</span>
-    <span class="basket-sub" id="basketLabel">stems</span>
-  </div>
-
-  <div class="strikes" id="strikes" aria-label="Strikes"></div>
 </div>
 
 <!-- ── Title screen ─────────────────────────────────────────────────── -->

@@ -1,8 +1,8 @@
-/* Turns one failed round's log into up to two short, specific things to
-   work on next — numbers pulled from the round that just happened, not
-   generic advice. Reuses the same per-axis breakdown and phrasing the
-   in-round popup already grades against (see scoring.js, i18n.js), so a
-   tip here always agrees with what practice mode would have told you. */
+/* Turns one failed round's log into one short, specific thing to work on
+   next — numbers pulled from the round that just happened, not generic
+   advice. Reuses the same per-axis breakdown and phrasing the in-round
+   popup already grades against (see scoring.js, i18n.js), so a tip here
+   always agrees with what practice mode would have told you. */
 
 import { CFG } from './config.js';
 import { SPECIES } from './species.js';
@@ -96,11 +96,14 @@ export function coachTips(roundLog) {
   const cuts = roundLog.events.filter((e) => e.type === 'cut');
   if (!cuts.length) return [];
 
-  const tips = [nearMissTip(roundLog), weakSpeciesTip(roundLog)].filter(Boolean);
-  if (tips.length) return tips.slice(0, 2);
+  // One tip, not a report. Which species to go practise is the most
+  // concrete thing to hand someone — the near-miss arithmetic is worth
+  // having, but only when there is no single species to blame instead.
+  const tip = weakSpeciesTip(roundLog) || nearMissTip(roundLog);
+  if (tip) return [tip];
 
-  // Nothing specific stood out — fall back to whatever cost the most
-  // ground, in the order it usually matters most.
+  // Nothing species-specific stood out — fall back to whatever cost the
+  // most ground, in the order it usually matters most.
   const stings = roundLog.events.filter((e) => e.type === 'sting');
   const missed = roundLog.events.filter((e) => e.type === 'missed');
   if (stings.length) {

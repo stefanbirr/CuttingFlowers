@@ -58,9 +58,11 @@ html, body {
 
 /* ── HUD ──────────────────────────────────────────────────────────── */
 
+/* Compact on purpose: landscape hands the field width, not height, and
+   every pixel of HUD is a pixel the meadow does not get. */
 #hud {
   pointer-events: none;
-  padding: calc(var(--safe-t) + 10px) calc(var(--safe-r) + 12px) 0 calc(var(--safe-l) + 12px);
+  padding: calc(var(--safe-t) + 7px) calc(var(--safe-r) + 10px) 0 calc(var(--safe-l) + 10px);
 }
 
 /* The sky can be very bright, so the HUD carries its own scrim. */
@@ -68,7 +70,7 @@ html, body {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
-  height: calc(var(--safe-t) + 118px);
+  height: calc(var(--safe-t) + 72px);
   background: linear-gradient(180deg, rgba(8, 14, 10, .72) 0%, rgba(8, 14, 10, .45) 55%, rgba(8, 14, 10, 0) 100%);
   pointer-events: none;
 }
@@ -77,23 +79,23 @@ html, body {
 .hud-top {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
-.hud-cell { display: flex; flex-direction: column; min-width: 62px; }
+.hud-cell { display: flex; flex-direction: column; min-width: 48px; }
 .hud-cell.hud-round { align-items: center; flex: 1; }
 .hud-cell.hud-right { align-items: flex-end; }
 
 .hud-label {
-  font-size: 10px;
-  letter-spacing: .14em;
+  font-size: 9px;
+  letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--ink-dim);
 }
 .hud-value {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 2px 8px rgba(0, 0, 0, .55);
 }
@@ -104,22 +106,29 @@ html, body {
   pointer-events: auto;
   /* Stays hard right even when the round/clock cells are hidden. */
   margin-left: auto;
-  width: 40px; height: 40px;
+  width: 30px; height: 30px;
   border: 1px solid var(--stroke);
-  border-radius: 12px;
+  border-radius: 9px;
   background: rgba(19, 28, 22, .6);
   color: var(--ink);
   display: grid; place-items: center;
   padding: 0;
   backdrop-filter: blur(6px);
 }
-.icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+.icon-btn svg { width: 14px; height: 14px; fill: currentColor; }
 .icon-btn:active { transform: scale(.93); }
 
-.hud-quota { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+/* Strikes and the stems collected used to sit pinned to the bottom
+   corners of the screen — fine when a tall field left the ground clear
+   underneath them, but landscape's shorter field means stems now grow
+   right through that space. Folded into the goal row instead, which
+   keeps the whole HUD in one strip along the top and leaves every other
+   pixel to the meadow. */
+.hud-quota { margin-top: 5px; display: flex; align-items: center; gap: 10px; }
+.quota-progress { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; }
 .quota-bar {
   flex: 1;
-  height: 6px;
+  height: 5px;
   border-radius: 99px;
   background: rgba(0, 0, 0, .38);
   overflow: hidden;
@@ -134,7 +143,7 @@ html, body {
 .quota-fill.met { background: linear-gradient(90deg, var(--gold), #fff0c2); }
 .quota-text {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
@@ -142,15 +151,15 @@ html, body {
 
 .hud-combo {
   position: absolute;
-  top: calc(var(--safe-t) + 96px);
+  top: calc(var(--safe-t) + 62px);
   left: 50%;
   transform: translateX(-50%) scale(.8);
-  padding: 4px 14px;
+  padding: 3px 12px;
   border-radius: 99px;
   background: rgba(255, 212, 121, .16);
   border: 1px solid rgba(255, 212, 121, .5);
   color: var(--gold);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: .04em;
   opacity: 0;
@@ -214,31 +223,27 @@ html, body {
 .pick-tech { font-size: 9px; color: var(--ink-dim); text-align: center; }
 
 .hud-basket {
-  position: absolute;
-  right: calc(var(--safe-r) + 14px);
-  bottom: calc(var(--safe-b) + 14px);
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 14px;
+  padding: 3px 9px;
+  border-radius: 10px;
   background: rgba(19, 28, 22, .55);
   border: 1px solid var(--stroke);
   backdrop-filter: blur(6px);
   font-variant-numeric: tabular-nums;
 }
-#basketCount { font-size: 20px; font-weight: 800; line-height: 1; }
-.basket-sub { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); }
+#basketCount { font-size: 14px; font-weight: 800; line-height: 1.1; }
+.basket-sub { font-size: 7px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
 
 .strikes {
-  position: absolute;
-  left: calc(var(--safe-l) + 14px);
-  bottom: calc(var(--safe-b) + 18px);
+  flex: 0 0 auto;
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 .strike-dot {
-  width: 12px; height: 12px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   border: 1.5px solid rgba(255, 111, 97, .55);
 }

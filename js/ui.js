@@ -100,7 +100,7 @@ export const ui = {
   /** Swap the goal/clock chrome for the species brief, or back again. */
   setPracticeMode(on, species) {
     this.el.hudPractice.classList.toggle('hidden', !on);
-    document.querySelector('.hud-quota')?.classList.toggle('hidden', on);
+    document.getElementById('quotaProgress')?.classList.toggle('hidden', on);
     this.el.strikes.classList.toggle('hidden', on);
     // No clock and no round number when you are just drilling one species.
     this.el.hud.querySelector('.hud-right')?.classList.toggle('hidden', on);
