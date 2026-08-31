@@ -1,0 +1,296 @@
+# Bloom & Blade — design northstar
+
+## Skill has to matter more than luck
+
+**A better player must score better. When a round goes badly it should be
+because of something the player did, not something the field dealt them.**
+
+This is the rule everything else is tuned around. Where a change would make
+the game prettier, or more varied, or more surprising, but weaker on this,
+this wins.
+
+It does not mean removing randomness. A field that dealt the same hand every
+round would be dead. It means randomness sets the *texture* of a round, never
+its *outcome* — the draw decides what the next minute feels like, the player
+decides how it goes.
+
+### Why it needed writing down
+
+The game drifted away from this once already, quietly, in several places at
+once, and none of it looked like a bug:
+
+- Species were worth different points, so *which* flowers you drew mattered
+  as much as how well you cut them.
+- Spawns were drawn independently, so one round in six dealt a run of the
+  fussy species and was simply harder, for no reason the player could see.
+- The round quota kept compounding at 26% a round after the field had stopped
+  getting more generous, so late rounds asked for a rate no player could
+  supply.
+- A single bad cut wiped the whole combo multiplier, so *where* a mistake
+  landed in a round mattered more than how many you made.
+
+Each was defensible on its own. Together they meant a round's outcome was
+mostly decided by things outside the player's hands.
+
+### How it is enforced now
+
+- **Every cuttable stem is worth the same** (`CFG.cutBase`). Technique
+  decides the score; the species decides only how hard that technique is.
+- **Spawning has a memory** (`SpeciesBag`, `CFG.spawnBag`). A species that
+  just appeared is unlikely to appear again straight away, and recovers over
+  the following spawns. Never impossible — the field is a loaded shuffle, not
+  a rota — but a round's mix stays near the mix it is meant to be.
+- **The quota tracks what the field can actually supply**
+  (`quotaForRound`). It follows the growth of `maxAlive` and the spawn rate,
+  and flattens when they do.
+- **A bad cut costs ground, not everything** (`CFG.comboBreakLoss`). Losing a
+  streak still stings without erasing a dozen good cuts before it.
+- **Weeds cost lines, not stems** (`CFG.hazards`). `maxAlive` counts flowers
+  only, so how much there is to harvest never depends on how many nettles
+  turned up. What a weed takes is ground a swipe has to miss on its
+  follow-through — a cost skill can answer.
+
+## The difficulty dial
+
+`CFG.hazards.weightCap` is the intended lever for late-round difficulty. It
+thickens the field with weeds, which costs the player clean lines rather than
+harvest, so it makes a round harder without making it more arbitrary.
+
+It is strong, and it is deliberately shipped at the balance the quota curve
+was tuned against rather than at a harder default. Measured over 720 rounds
+at four skill levels:
+
+| `weightCap` | top player clears r8 | clears r10 |
+|------------:|---------------------:|-----------:|
+|    1.0 (now) |                 63% |        68% |
+|         1.6 |                 47% |        47% |
+|         2.6 |                 38% |        47% |
+
+Skill still decided the round at every setting (its share of the variance
+held at 43–69%), so a harder default is a legitimate thing to want — but the
+quota has to come down with it, or late rounds become unclearable for
+everyone rather than merely demanding.
+
+Worth knowing when tuning it: weeds still compete with flowers for *space*
+via `CFG.spawnClearance`, and a bot that has to hunt for a clean line loses
+time doing it. So raising weed pressure does cost some harvest indirectly,
+even though weeds no longer hold a harvest slot outright.
+
+## How to check it
+
+Two tools, both driving the real game through the real blade. Rounds run on a
+virtual clock, so a full sweep is seconds, not hours.
+
+```sh
+# Skill ladder + the headline numbers.
+node tools/simulate.mjs --rounds 5,8,10 --skill 0.25,0.5,0.75,1.0 --trials 60
+
+# Does the species draw predict the score, holding skill fixed?
+node tools/mixcheck.mjs --rounds 5,8,10 --skill 0.5,0.75 --trials 300
+
+# Try a tuning change without editing anything.
+node tools/simulate.mjs --rounds 8 --skill 0.5,1.0 --cfg '{"comboBreakLoss":0.6}'
+```
+
+`simulate.mjs` reports two numbers per round:
+
+- **skillShare** — of all the variation in scores, the share explained by
+  *which bot played* rather than *which seed it drew*. Above 50% means skill
+  is the larger factor.
+- **ordered** — how often the better bot actually beat the worse one on the
+  same starting field. The blunter reading of the same question.
+
+`mixcheck.mjs` answers the narrower question the northstar names directly:
+with skill held fixed, how well does the species mix predict the score? It
+fits per-species difficulty on half the runs and measures on the other half —
+fitting and testing on the same batch hands eleven free parameters to a few
+hundred points and manufactures a correlation out of noise.
+
+### Where it stands
+
+Measured over 720 simulated rounds at four skill levels:
+
+| round | skillShare | ordered (adjacent) |
+|------:|-----------:|-------------------:|
+|     5 |        40% |                76% |
+|     8 |        60% |                78% |
+|    10 |        60% |                78% |
+
+A clearly better player wins essentially always. Between neighbouring skill
+levels a quarter-step apart it is about three times in four, which is roughly
+what that gap should buy.
+
+Unresolved: `mixcheck.mjs` currently reports the species draw correlating with
+the score at r ≈ 0.65–0.88, not the r ≈ 0.1–0.2 an earlier note in this file
+claimed. The same numbers come out of the code from before the two-speed
+change, so it is not a regression — either the tool drifted or the earlier
+figure was read off something else. Worth settling before trusting either.
+
+### Two things worth knowing before you read those numbers
+
+**A round ends the moment its quota is met.** So on a round a player clears
+comfortably, extra skill has nowhere to go in the score and `skillShare`
+collapses — round 3 reads 29%, which looks alarming and is not. Skill is
+still there, expressed as speed: with both bots clearing, the better one
+clears faster about three times in four (36.1s → 31.0s). Judge easy rounds on
+time, not points.
+
+**Low-skill runs are swingy by nature**, which drags `skillShare` down from
+the bottom end. A sloppy player striking out at ten seconds and a sloppy
+player surviving to the whistle are far apart, and that gap is mostly theirs.
+Consistency is part of what skill buys.
+
+### A finding this contradicts, on purpose
+
+Cutting slightly *before* the bloom window costs about 7% of a cut's quality
+(`CFG.timingGate` is forgiving) but frees a spawn slot sooner — and late
+rounds are capped by the field's throughput, not the blade. So rushing is
+measurably better than waiting for the perfect moment, which undercuts the
+"wait for the bloom" mechanic. It is not a fairness problem, so it is not
+covered by the rule above, but it is worth fixing when the timing window is
+next revisited.
+
+## Two cut speeds, and what that cost
+
+`CFG.speeds` had three bands. The middle one asked the player to tell "steady"
+from its neighbours by feel, which no thumb does reliably, so it read as noise
+rather than as technique. It is gone; the five species that used it were split
+between slow and fast.
+
+That change is not free. Measured at skill 1.0 over 400 rounds, it dropped the
+top bot's clear rate on rounds 8 and 10 from 65%/68% to 51%/51% — the same
+cuts, slightly less of the round's time budget left over. `quotaBase` came down
+950 → 880 to put it back (63%/60%). If the bands are ever retuned, expect the
+quota to move with them.
+
+One combination is worth avoiding on its own merits: **fast plus zigzag**.
+Sawing is a repeated motion, and asking for it at whip speed cost about five
+points of clear rate by itself. Pampas grass is a slow saw for that reason.
+
+## The bot cannot feel everything the player feels
+
+The pattern score for a straight cut used to be `absTurn` — the total turning
+summed over every vertex of the stroke. That is a **sum**, so it grows with
+however many points the stroke was sampled at, and sampling density is set by
+swipe speed, not by shape. The identical straight line scored:
+
+| points in stroke | 4 | 10 | 24 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|
+| old Form score | 100% | 42% | 17% | 8% | 8% |
+
+A flick scored perfectly, a careful draw scored the floor, and in between it
+swung between 8% and 86% run to run. From the player's side that is not a
+technique they can practise — it is a coin flip, which is precisely what the
+northstar forbids.
+
+**None of the harness numbers moved when this was fixed.** The bot's strokes
+are synthetic: clean, sparse, jitter-free. It scored a mean of **1.000** on
+straight patterns with 0% at the floor, across every skill level, before and
+after. A real player's log over two rounds averaged **0.43, with 37% of cuts
+at the floor.** The balance had been tuned for years of sessions against a
+player that could not experience the defect, so the game was roughly 25%
+harder for a human than the harness ever showed — and the fix moves real play
+*onto* the tuned target rather than past it. `quotaBase` did not change.
+
+The lesson worth keeping: **the bot validates balance, not feel.** Anything
+that depends on how a real gesture is captured — sampling, jitter, coalesced
+events, the shape of a human motion — is invisible to it by construction.
+When a player reports something feeling wrong and the harness says the round
+is fine, the harness is not the tiebreaker. Reach for a captured stroke (the
+run log records one per cut) before trusting it.
+
+Straight and cross now score on two ratios of the stroke's own size — how far
+it strayed from the line joining its ends, and how much of its travel got it
+anywhere — both properties of the shape rather than of the sampling.
+
+**Arc and zigzag still use `absTurn` and carry the same latent bug** (an ideal
+arc drops 100% → 34% from 4 to 60 points; zigzag runs the other way, 70% →
+99%). They were left alone deliberately: the species that demand them are
+slow-band, which lands them in the dense-sampling end where the numbers happen
+to come out right, and the player reported both as feeling good. Worth fixing
+the day either one moves speed band.
+
+## Weeds were reserving a flower's worth of personal space
+
+Confirmed by report, then measured: a weed's spawn-clearance requirement
+used the same round-scaled radius as a flower's, not something scaled to a
+weed's own (much smaller) canopy. On a phone-width screen that reserved
+more room around each weed than the field had to give — placing exactly
+`maxHazardsForRound()` weeds and then trying to fill the flower budget
+around them:
+
+| round | weeds standing | flower budget | flowers that actually fit |
+|------:|----------------:|---------------:|----------------------------:|
+|     5 |               2 |               3 |                            0 |
+|     7 |               2 |               4 |                            0 |
+|     9 |               3 |               4 |                            0 |
+
+At round 9 — the round where `aliveCap` weeds first stand together — a full
+hazard field locked new flowers out **completely**, every time. That
+directly contradicts the claim two sections up: "`maxAlive` counts flowers
+only, so how much there is to cut never depends on how many nettles the
+field happened to deal." In practice it depended on it a great deal — the
+budget just failed silently, so a round quietly played host to fewer
+flowers than its own quota assumed without anything on screen saying so.
+
+Fixed with `CFG.hazards.clearanceFactor` (0.3): the gap required around a
+*hazard* neighbour is now a fraction of a flower's, judged separately per
+neighbour rather than against one shared distance. Flower-to-flower spacing
+is untouched — same numbers as before. Re-measured the same three rounds
+after the fix: 0/0/2 fit around 2/2/3 max weeds — no more total lockouts,
+though a maxed-out hazard field still costs real flower capacity, which is
+the intended shape of the dial, just no longer able to reach zero.
+
+That capacity recovering moves the numbers this file already reports:
+skill-1.0 clear rates at rounds 8/10 went 63%/68% → 77%/70%, because those
+rounds could now actually deliver the flower count their quota was tuned
+against. skillShare held (52–64%, if anything slightly up). `quotaBase` was
+deliberately **not** re-tuned to pull the old numbers back down — those
+were calibrated against a field quietly shorting the player, not the target
+worth defending. Worth watching on the next tuning pass rather than
+guessed at now.
+
+## Landscape, and the two units that were secretly portrait-only
+
+The game now enforces landscape (manifest `orientation`, a
+`screen.orientation.lock()` attempt, and a full-screen gate that pauses the
+round — the gate is the only one of the three iOS honours). Two measured
+things had to be fixed first, because both silently assumed a tall window:
+
+**Blade speed was reported in screen-heights per second.** Screen height
+flips on rotation, so the identical 150px thumb flick measured **2.59×
+faster** in landscape and every cut read as a fast one. It is now measured
+against `CFG.speedRef * view.scale` — `view.scale` sizes everything the
+player is actually asked to trace, and is orientation-invariant. Same drag,
+after: phone portrait 0.45, phone landscape 0.45, laptop 0.45. Before:
+0.37 / 0.96 / 0.42.
+
+**`spawnClearance` was a fraction of screen height** — a strange unit for a
+sideways gap. Rotating dropped it 126px → 58px while doubling the field
+width. Now `134 * view.scale`, which reproduces the portrait value exactly.
+
+### Portrait was starving the field, and the quota knew
+
+The real surprise: a 393px-wide phone cannot hold `maxAlive` stems apart at
+the required clearance, so portrait was **chronically spawn-starved** — the
+field quietly delivered fewer flowers than its own budget allowed, and the
+quota curve had been fitted to that shortfall. Landscape has the width, so
+the budget actually fills, and every round came back at ~100% clear across
+every skill level.
+
+`quotaBase` 880 → 1500 restores real pressure. Measured over 720 rounds:
+
+| | portrait (old) | landscape (now) |
+|---|---:|---:|
+| skillShare r5 / r8 / r10 | 52% / 64% / 61% | 50% / 77% / 80% |
+| ordered r5 / r8 / r10 | 75% / 83% / 76% | 72% / 77% / 81% |
+
+Skill decides **more** in landscape than it ever did in portrait, which is
+the northstar moving the right way — the starved field had been adding luck.
+
+**Still owed a proper pass.** Raising the quota barely moves a top bot's
+clear rate, because the round ends the moment the quota is met and a
+generous field just supplies more cuts (21.6 → 26.9 cuts as base went
+1100 → 1500). The separation between neighbouring skill levels is flatter
+here than portrait's was. The lever worth reaching for next is probably
+`maxAlive` or the spawn gap, not the quota — the field, not the target.

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bloom &amp; Blade</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="A mobile slicing game about harvesting flowers with the right technique, then binding them into a bouquet.">
+<meta name="theme-color" content="#1d2b21">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bloom &amp; Blade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="stage" aria-label="Flower field"></canvas>
+
+<!-- ── Heads-up display ─────────────────────────────────────────────── -->
+<div id="hud" class="layer hidden" aria-hidden="true">
+  <div class="hud-top">
+    <div class="hud-cell">
+      <span class="hud-label" id="hudLabelScore">Score</span>
+      <span class="hud-value" id="hudScore">0</span>
+    </div>
+    <div class="hud-cell hud-round">
+      <span class="hud-label" id="hudLabelRound">Round</span>
+      <span class="hud-value" id="hudRound">1</span>
+    </div>
+    <div class="hud-cell hud-right">
+      <span class="hud-label" id="hudLabelTime">Time</span>
+      <span class="hud-value" id="hudTime">45</span>
+    </div>
+    <button id="btnPause" class="icon-btn" aria-label="Pause">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.4"/><rect x="14" y="5" width="4" height="14" rx="1.4"/></svg>
+    </button>
+  </div>
+
+  <div class="hud-quota">
+    <div class="strikes" id="strikes" aria-label="Strikes"></div>
+    <div class="quota-progress" id="quotaProgress">
+      <div class="quota-bar"><div class="quota-fill" id="quotaFill"></div></div>
+      <span class="quota-text" id="quotaText">Goal 600</span>
+    </div>
+    <div class="hud-basket">
+      <span id="basketCount">0</span>
+      <span class="basket-sub" id="basketLabel">stems</span>
+    </div>
+  </div>
+
+  <div class="hud-combo" id="hudCombo"><span id="comboValue">x2</span> <span id="comboLabel">combo</span></div>
+
+  <!-- Practice mode replaces the goal bar with the species brief -->
+  <div class="hud-practice hidden" id="hudPractice">
+    <div class="practice-name" id="practiceName">Tulip</div>
+    <div class="practice-hint" id="practiceHint"></div>
+    <div class="practice-stats" id="practiceStats">no cuts yet</div>
+  </div>
+</div>
+
+<!-- ── Title screen ─────────────────────────────────────────────────── -->
+<div id="screenTitle" class="layer screen">
+  <div class="panel title-panel">
+    <div class="logo">
+      <span class="logo-bloom">Bloom</span><span class="logo-amp">&amp;</span><span class="logo-blade">Blade</span>
+    </div>
+    <p class="tagline" id="tagline">Every flower wants a different blade.<br>Cut it right, then bind the bouquet.</p>
+    <div class="best-line"><span id="bestLineLabel">Best bouquet run:</span> <strong id="bestScore">0</strong></div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnPlay">Start harvest</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnPractice">Practice a flower</button>
+      <button class="btn" id="btnLevels">Choose level</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnGuide">Field guide</button>
+      <button class="btn" id="btnTutorial">How to cut</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost small" id="btnSound">Sound: on</button>
+      <button class="btn ghost small" id="btnLang">Deutsch</button>
+    </div>
+    <p class="fineprint" id="fineprint">Works offline &middot; add to your home screen</p>
+  </div>
+</div>
+
+<!-- ── Tutorial ─────────────────────────────────────────────────────── -->
+<div id="screenTutorial" class="layer screen hidden">
+  <div class="panel">
+    <h2 id="tutorialTitle">How to cut</h2>
+    <ol class="howto" id="howtoList"></ol>
+    <div class="btn-row"><button class="btn primary" id="btnTutorialClose" data-close="screenTutorial">Got it</button></div>
+  </div>
+</div>
+
+<!-- ── Field guide ──────────────────────────────────────────────────── -->
+<div id="screenGuide" class="layer screen hidden">
+  <div class="panel wide">
+    <h2 id="guideTitle">Field guide</h2>
+    <div class="guide-list" id="guideList"></div>
+    <div class="btn-row"><button class="btn primary" id="btnGuideBack" data-close="screenGuide">Back</button></div>
+  </div>
+</div>
+
+<!-- ── Practice: pick a species ─────────────────────────────────────── -->
+<div id="screenPractice" class="layer screen hidden">
+  <div class="panel wide">
+    <h2 id="practiceTitle">Practice a flower</h2>
+    <p class="panel-sub" id="practiceSubtitle">One stem at a time, centre of the field, no clock.
+      The next one sprouts once you have cut the last.</p>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div class="btn-row"><button class="btn" id="btnPracticeBack" data-close="screenPractice">Back</button></div>
+  </div>
+</div>
+
+<!-- ── Level select ─────────────────────────────────────────────────── -->
+<div id="screenLevels" class="layer screen hidden">
+  <div class="panel wide">
+    <h2 id="levelsTitle">Choose a level</h2>
+    <p class="panel-sub" id="levelsSubtitle">Jump straight into any round you have already reached.</p>
+    <div class="pick-grid" id="levelGrid"></div>
+    <div class="btn-row"><button class="btn" id="btnLevelsBack" data-close="screenLevels">Back</button></div>
+  </div>
+</div>
+
+<!-- ── Pause ────────────────────────────────────────────────────────── -->
+<div id="screenPause" class="layer screen hidden">
+  <div class="panel">
+    <h2 id="pauseTitle">Paused</h2>
+    <div class="btn-row"><button class="btn primary" id="btnResume">Resume</button></div>
+    <div class="btn-row">
+      <button class="btn" id="btnPauseGuide">Field guide</button>
+      <button class="btn danger" id="btnQuit">Quit run</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Round result ─────────────────────────────────────────────────── -->
+<div id="screenBouquet" class="layer screen bouquet-screen hidden">
+  <div class="bouquet-head">
+    <h2 id="bouquetTitle">Round 1</h2>
+    <div class="result-status" id="resultStatus"></div>
+  </div>
+  <div class="bouquet-panel">
+    <div class="result-points" id="resultPoints"></div>
+    <div class="coach-tips" id="overCoach"></div>
+    <div class="btn-row" id="bouquetActions"></div>
+    <div class="btn-row">
+      <button class="btn ghost small" id="btnReplay">Watch your cuts</button>
+      <button class="btn ghost small" id="btnCopyLog">Copy run log</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cut replay ───────────────────────────────────────────────────── -->
+<div id="screenReplay" class="layer screen hidden">
+  <div class="panel wide">
+    <h2 id="replayTitle">Watch your cuts</h2>
+
+    <div id="replayList" class="replay-list"></div>
+
+    <div id="replayDetail" class="replay-detail hidden">
+      <div class="replay-stage">
+        <canvas id="replayCanvas" width="300" height="300"></canvas>
+      </div>
+      <div class="replay-legend">
+        <span><i class="legend-dot ideal"></i><span id="replayLegendIdeal">Ideal stroke</span></span>
+        <span><i class="legend-dot actual"></i><span id="replayLegendActual">Your stroke</span></span>
+      </div>
+      <div class="replay-readout" id="replayReadout"></div>
+      <div class="btn-row">
+        <button class="btn ghost small" id="btnReplayBack">Back to list</button>
+        <button class="btn primary small" id="btnReplayPlay">Play</button>
+      </div>
+    </div>
+
+    <div class="btn-row"><button class="btn" id="btnReplayClose">Close</button></div>
+  </div>
+</div>
+
+<div id="rotateNote" class="layer rotate-gate hidden">
+  <div class="rotate-inner">
+    <svg class="rotate-icon" viewBox="0 0 44 72" aria-hidden="true">
+      <rect x="2" y="2" width="40" height="68" rx="7" fill="none" stroke="currentColor" stroke-width="3"/>
+      <rect x="18" y="7" width="8" height="2.5" rx="1.25" fill="currentColor"/>
+      <circle cx="22" cy="63" r="2.6" fill="currentColor"/>
+    </svg>
+    <p id="rotateText">Turn your device sideways &mdash; the meadow needs the width.</p>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

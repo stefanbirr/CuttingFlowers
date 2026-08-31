@@ -1,0 +1,558 @@
+/* Bloom & Blade — mobile-first PWA styling.
+   Everything sits on top of one full-bleed canvas; the DOM only carries
+   HUD chrome and the between-round panels. */
+
+:root {
+  --ink: #f2f7ef;
+  --ink-dim: #9db09a;
+  --moss: #1d2b21;
+  --moss-deep: #131c16;
+  --leaf: #6fbf73;
+  --leaf-bright: #a7e8a0;
+  --petal: #ff7fa8;
+  --gold: #ffd479;
+  --danger: #ff6f61;
+  --panel: rgba(19, 28, 22, .93);
+  --stroke: rgba(167, 232, 160, .22);
+  --radius: 18px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--moss-deep);
+  color: var(--ink);
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+}
+.hidden { display: none !important; }
+
+/* ── HUD ──────────────────────────────────────────────────────────── */
+
+/* Compact on purpose: landscape hands the field width, not height, and
+   every pixel of HUD is a pixel the meadow does not get. */
+#hud {
+  pointer-events: none;
+  padding: calc(var(--safe-t) + 7px) calc(var(--safe-r) + 10px) 0 calc(var(--safe-l) + 10px);
+}
+
+/* The sky can be very bright, so the HUD carries its own scrim. */
+#hud::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: calc(var(--safe-t) + 72px);
+  background: linear-gradient(180deg, rgba(8, 14, 10, .72) 0%, rgba(8, 14, 10, .45) 55%, rgba(8, 14, 10, 0) 100%);
+  pointer-events: none;
+}
+.hud-top, .hud-quota { position: relative; }
+
+.hud-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hud-cell { display: flex; flex-direction: column; min-width: 48px; }
+.hud-cell.hud-round { align-items: center; flex: 1; }
+.hud-cell.hud-right { align-items: flex-end; }
+
+.hud-label {
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.hud-value {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .55);
+}
+#hudTime.urgent { color: var(--danger); animation: pulse .6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+
+.icon-btn {
+  pointer-events: auto;
+  /* Stays hard right even when the round/clock cells are hidden. */
+  margin-left: auto;
+  width: 30px; height: 30px;
+  border: 1px solid var(--stroke);
+  border-radius: 9px;
+  background: rgba(19, 28, 22, .6);
+  color: var(--ink);
+  display: grid; place-items: center;
+  padding: 0;
+  backdrop-filter: blur(6px);
+}
+.icon-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.icon-btn:active { transform: scale(.93); }
+
+/* Strikes and the stems collected used to sit pinned to the bottom
+   corners of the screen — fine when a tall field left the ground clear
+   underneath them, but landscape's shorter field means stems now grow
+   right through that space. Folded into the goal row instead, which
+   keeps the whole HUD in one strip along the top and leaves every other
+   pixel to the meadow. */
+.hud-quota { margin-top: 5px; display: flex; align-items: center; gap: 10px; }
+.quota-progress { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; }
+.quota-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, .38);
+  overflow: hidden;
+}
+.quota-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--leaf), var(--gold));
+  transition: width .35s ease;
+}
+.quota-fill.met { background: linear-gradient(90deg, var(--gold), #fff0c2); }
+.quota-text {
+  flex: 0 0 auto;
+  font-size: 10px;
+  white-space: nowrap;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-combo {
+  position: absolute;
+  top: calc(var(--safe-t) + 62px);
+  left: 50%;
+  transform: translateX(-50%) scale(.8);
+  padding: 3px 12px;
+  border-radius: 99px;
+  background: rgba(255, 212, 121, .16);
+  border: 1px solid rgba(255, 212, 121, .5);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  opacity: 0;
+  transition: opacity .2s ease, transform .2s ease;
+}
+.hud-combo.on { opacity: 1; transform: translateX(-50%) scale(1); }
+#comboValue { font-size: 16px; }
+
+/* ── Practice brief (replaces the goal bar) ───────────────────────── */
+
+.hud-practice {
+  position: relative;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(19, 28, 22, .55);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(6px);
+}
+.practice-name { font-size: 14px; font-weight: 800; color: var(--leaf-bright); }
+.practice-hint { font-size: 11px; color: #cfe0cc; margin-top: 1px; }
+.practice-stats {
+  font-size: 11px;
+  color: var(--ink-dim);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Species picker ───────────────────────────────────────────────── */
+
+.panel-sub { margin: -6px 0 14px; font-size: 13px; color: var(--ink-dim); }
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 14px;
+}
+.pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(111, 191, 115, .08);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: transform .12s ease, background .18s ease;
+}
+.pick-item:active { transform: scale(.95); background: rgba(111, 191, 115, .2); }
+.pick-item canvas { border-radius: 8px; background: rgba(0, 0, 0, .2); }
+.pick-item.locked { opacity: .4; cursor: default; }
+.pick-name { font-size: 11px; font-weight: 700; line-height: 1.2; text-align: center; }
+.pick-name.level-num { font-size: 20px; padding: 6px 0; }
+.pick-tech { font-size: 9px; color: var(--ink-dim); text-align: center; }
+
+.hud-basket {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: rgba(19, 28, 22, .55);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(6px);
+  font-variant-numeric: tabular-nums;
+}
+#basketCount { font-size: 14px; font-weight: 800; line-height: 1.1; }
+.basket-sub { font-size: 7px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+
+.strikes {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+}
+.strike-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 111, 97, .55);
+}
+.strike-dot.used { background: var(--danger); box-shadow: 0 0 10px rgba(255, 111, 97, .7); }
+
+/* ── Screens & panels ─────────────────────────────────────────────── */
+
+.screen {
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 16px) calc(var(--safe-l) + 16px);
+  background: radial-gradient(120% 90% at 50% 10%, rgba(20, 32, 24, .42), rgba(9, 14, 11, .82));
+  backdrop-filter: blur(2px);
+  animation: fade .22s ease;
+}
+@keyframes fade { from { opacity: 0; } }
+
+.panel {
+  width: min(430px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 22px 20px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+  text-align: center;
+}
+/* The guide and tutorial can be opened from the pause menu, which sits
+   later in the document — lift them so they land on top either way. */
+#screenGuide, #screenTutorial { z-index: 24; }
+
+.panel.wide { width: min(560px, 100%); text-align: left; }
+.panel h2 { margin: 0 0 14px; font-size: 21px; letter-spacing: .01em; }
+
+.logo { display: flex; align-items: baseline; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.logo-bloom { font-size: 38px; font-weight: 800; color: var(--petal); letter-spacing: -.02em; }
+.logo-amp { font-size: 22px; color: var(--ink-dim); }
+.logo-blade { font-size: 38px; font-weight: 800; color: var(--leaf-bright); letter-spacing: -.02em; }
+
+.tagline { margin: 10px 0 18px; color: var(--ink-dim); font-size: 14px; }
+.best-line { font-size: 13px; color: var(--ink-dim); margin-bottom: 16px; }
+.best-line strong { color: var(--gold); font-size: 16px; }
+.fineprint { margin: 16px 0 0; font-size: 11px; color: rgba(157, 176, 154, .7); }
+
+.btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+
+.btn {
+  flex: 1;
+  min-height: 50px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(111, 191, 115, .10);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform .12s ease, background .18s ease;
+}
+.btn:active { transform: scale(.96); }
+.btn.primary {
+  background: linear-gradient(160deg, var(--leaf), #3f8f52);
+  border-color: transparent;
+  color: #08130c;
+  box-shadow: 0 10px 24px rgba(63, 143, 82, .35);
+}
+.btn.danger { background: rgba(255, 111, 97, .14); border-color: rgba(255, 111, 97, .45); color: #ffb3ab; }
+.btn.ghost { background: none; border-color: transparent; color: var(--ink-dim); }
+.btn.small { min-height: 38px; font-size: 13px; font-weight: 600; margin-top: 12px; }
+
+.howto {
+  text-align: left;
+  margin: 0 0 6px;
+  padding-left: 20px;
+  font-size: 14px;
+  color: #d8e6d5;
+}
+.howto li { margin-bottom: 10px; }
+.howto b { color: var(--leaf-bright); font-weight: 700; }
+.ang {
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+/* ── Field guide ──────────────────────────────────────────────────── */
+
+.guide-list {
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -6px 14px;
+  padding: 0 6px;
+  border-bottom: 1px solid rgba(167, 232, 160, .12);
+}
+.guide-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(167, 232, 160, .10);
+}
+.guide-item:last-child { border-bottom: 0; }
+.guide-item canvas { flex: 0 0 auto; border-radius: 10px; background: rgba(0, 0, 0, .2); }
+.guide-body { flex: 1; min-width: 0; }
+.guide-name { font-weight: 700; font-size: 15px; }
+.guide-name .tag {
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 6px;
+  vertical-align: 2px;
+  font-weight: 700;
+}
+.tag.flower { background: rgba(255, 127, 168, .18); color: #ffa8c4; }
+.tag.green  { background: rgba(111, 191, 115, .18); color: var(--leaf-bright); }
+.tag.hazard { background: rgba(255, 111, 97, .18); color: #ffb3ab; }
+.guide-hint { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+.guide-specs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.spec {
+  font-size: 10px;
+  letter-spacing: .05em;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .06);
+  color: #cfe0cc;
+}
+
+/* ── Bouquet screen ───────────────────────────────────────────────── */
+
+.bouquet-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(9, 14, 11, .55) 0%, rgba(9, 14, 11, .1) 35%, rgba(9, 14, 11, .88) 78%);
+  backdrop-filter: none;
+}
+.bouquet-head { text-align: center; }
+.bouquet-head h2 { margin: 0; font-size: 19px; text-shadow: 0 2px 10px rgba(0, 0, 0, .7); }
+@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } }
+
+.bouquet-panel {
+  width: min(430px, 100%);
+  margin: 0 auto;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+}
+
+/* Cleared / not cleared — the one thing the screen has to say before
+   anything else. */
+.result-status {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .6);
+}
+.result-status.cleared { color: var(--leaf-bright); }
+.result-status.failed { color: var(--danger); }
+
+/* Goal vs. reached — only rendered on a miss, where it's the headline. */
+.result-points { margin-bottom: 4px; }
+.result-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.result-row strong { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.result-bar {
+  height: 8px;
+  margin: 6px 0 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .08);
+  overflow: hidden;
+}
+.result-bar-fill { height: 100%; background: var(--danger); border-radius: 5px; }
+.result-note { margin: 0 0 10px; font-size: 12px; color: var(--ink-dim); }
+
+.coach-tips { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; text-align: left; }
+.coach-tip {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #eaf5e7;
+  background: rgba(15, 26, 17, .78);
+  border-left: 3px solid var(--leaf-bright);
+  border-radius: 0 8px 8px 0;
+  animation: slideIn .3s ease both;
+}
+
+/* ── Cut replay ───────────────────────────────────────────────────── */
+
+.replay-list {
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -6px 6px;
+  padding: 0 6px;
+}
+.replay-round-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 14px 0 4px;
+}
+.replay-round-head:first-child { margin-top: 4px; }
+.replay-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 4px;
+  border: none;
+  border-bottom: 1px solid rgba(167, 232, 160, .10);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.replay-item:active { background: rgba(111, 191, 115, .12); }
+.replay-item-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.replay-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.replay-item-name { font-weight: 700; font-size: 13.5px; }
+.replay-item-grade { font-size: 11.5px; color: var(--ink-dim); }
+.replay-empty { color: var(--ink-dim); font-size: 13px; padding: 10px 4px; }
+
+.replay-stage { display: flex; justify-content: center; margin-bottom: 8px; }
+#replayCanvas {
+  width: min(300px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid var(--stroke);
+}
+.replay-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  margin-bottom: 10px;
+}
+.replay-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend-dot.ideal { background: #ffe9a3; }
+.legend-dot.actual { background: #7fd4ff; }
+.replay-readout { margin-bottom: 4px; }
+.replay-readout-head { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.replay-axes { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.replay-axis { font-size: 11.5px; color: var(--ink-dim); }
+.replay-axis b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* A wall, not advice. The blade, the speed bands and the field's spacing
+   are all tuned against one shape of window; playing the other way round
+   is not a tighter version of the game, it is a different one. iOS ignores
+   the manifest's orientation and has no lock API, so this covering the
+   screen is the only thing that actually holds a phone to landscape. */
+.rotate-gate {
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--moss-deep);
+  text-align: center;
+}
+.rotate-inner { max-width: 320px; }
+.rotate-icon {
+  width: 52px;
+  height: 84px;
+  color: var(--leaf-bright);
+  animation: rotateHint 2.4s ease-in-out infinite;
+}
+@keyframes rotateHint {
+  0%, 42% { transform: rotate(90deg); }
+  58%, 100% { transform: rotate(0deg); }
+}
+.rotate-gate p {
+  margin: 20px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+@media (max-height: 620px) {
+  .logo-bloom, .logo-blade { font-size: 30px; }
+  .panel { padding: 16px; }
+  .howto { font-size: 13px; }
+  .btn { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
