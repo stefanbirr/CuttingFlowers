@@ -128,6 +128,27 @@
   </div>
 </div>
 
+<!-- ── New-species intro: a centered announcement before a round that
+     unlocks one, then a hands-on practice beat ──────────────────────── -->
+<div id="screenIntro" class="layer screen hidden">
+  <div class="panel intro-panel">
+    <div class="intro-kicker" id="introKicker">New this round</div>
+    <h2 class="intro-name" id="introName">Garden Rose</h2>
+    <canvas id="introSpecimen" class="intro-specimen" width="120" height="150"></canvas>
+    <div class="intro-specs" id="introSpecs"></div>
+    <p class="intro-hint" id="introHint"></p>
+    <div class="btn-row">
+      <button class="btn primary" id="btnIntroPractice">Practise cutting now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shown during the practice beat: swipe the stem, then start the round. -->
+<div id="introPractice" class="layer intro-practice hidden" aria-hidden="true">
+  <p class="intro-practice-hint" id="introPracticeHint">Swipe to try the cut</p>
+  <button class="btn primary" id="btnIntroStart">Start round</button>
+</div>
+
 <!-- ── Pause ────────────────────────────────────────────────────────── -->
 <div id="screenPause" class="layer screen hidden">
   <div class="panel">

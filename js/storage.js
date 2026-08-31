@@ -7,6 +7,7 @@ const DEFAULTS = {
   bestRound: 0,
   sound: true,
   seenTutorial: false,
+  introsSeen: [],   // species ids whose pre-round intro has already been shown
   harvested: 0,
   immaculate: 0,
   lang: null,   // null = not chosen yet; i18n falls back to the browser's language
@@ -30,6 +31,11 @@ export const store = {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ }
   },
   bump(k, by = 1) { this.set(k, (state[k] || 0) + by); },
+  introSeen(id) { return (state.introsSeen || []).includes(id); },
+  markIntroSeen(id) {
+    if (this.introSeen(id)) return;
+    this.set('introsSeen', [...(state.introsSeen || []), id]);
+  },
   recordRun(score, round) {
     if (score > state.best) this.set('best', score);
     if (round > state.bestRound) this.set('bestRound', round);

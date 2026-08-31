@@ -94,6 +94,12 @@ const STR = {
       roundTitle: 'Round {round}',
       nextRound: 'On to round {round}',
     },
+    intro: {
+      kicker: 'New this round',
+      practiceBtn: 'Practise cutting now',
+      tryCut: 'Swipe to try the cut',
+      start: 'Start round',
+    },
     over: {
       retry: 'Harvest again',
       home: 'Main menu',
@@ -227,6 +233,12 @@ const STR = {
     bouquet: {
       roundTitle: 'Runde {round}',
       nextRound: 'Weiter zu Runde {round}',
+    },
+    intro: {
+      kicker: 'Neu in dieser Runde',
+      practiceBtn: 'Jetzt Schnitt üben',
+      tryCut: 'Wische, um den Schnitt zu üben',
+      start: 'Runde starten',
     },
     over: {
       retry: 'Erneut ernten',

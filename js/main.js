@@ -49,6 +49,8 @@ on('btnLevels', () => {
 
 on('btnGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });
 on('btnTutorial', () => ui.show('screenTutorial'));
+on('btnIntroPractice', () => game.beginIntroPractice());
+on('btnIntroStart', () => game.beginRoundFromIntro());
 on('btnPause', () => game.pause());
 on('btnResume', () => game.resume());
 on('btnPauseGuide', () => { ui.buildGuide(); ui.show('screenGuide'); });

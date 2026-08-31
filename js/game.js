@@ -1,7 +1,7 @@
 /* Game state machine: spawning, slicing, grading, rounds and bouquets. */
 
 import { CFG, quotaForRound } from './config.js';
-import { SpeciesBag } from './species.js';
+import { SPECIES, SpeciesBag } from './species.js';
 import { Flower } from './flower.js';
 import { Blade, patternScore, crossScore } from './gesture.js';
 import { gradeCut, weakestPart } from './scoring.js';
@@ -189,6 +189,72 @@ export class Game {
     ui.setCombo(1);
     ui.setStrikes(0, CFG.strikesAllowed);
     ui.setTime(CFG.roundSeconds);
+
+    const introSpecies = this.introForRound();
+    if (introSpecies) this.enterIntro(introSpecies);
+  }
+
+  /** The species this round is the first to unlock, if it is worth a
+      teaching beat: a cuttable plant (weeds are the tutorial's job), not
+      shown before, and not one the player already met by clearing past
+      this round on an earlier run. Rounds 1's starters are the tutorial's
+      ground, so it begins at round 2. */
+  introForRound() {
+    if (this.mode !== 'run' || this.round < 2) return null;
+    if ((store.get('bestRound') || 0) >= this.round) return null;
+    const sp = SPECIES.find((s) => s.unlock === this.round && s.cut);
+    if (!sp || store.introSeen(sp.id)) return null;
+    return sp;
+  }
+
+  /** Beat one: a centered panel announcing the species. The round is fully
+      set up already (clock, quota, score) but none of it ticks outside the
+      'playing' state, so it simply waits. No stem yet, no blade. */
+  enterIntro(species) {
+    this.introSpecies = species;
+    this.introPhase = 'preview';
+    this.state = 'intro';
+    this.blade.enabled = false;
+    this.flowers.length = 0;
+    this.pieces.length = 0;
+    this.pending.length = 0;
+    this.slowmo = 0;
+    ui.showHud(false);
+    ui.showIntroPreview(species);
+  }
+
+  /** Beat two: dismiss the panel, sprout one pre-bloomed stem to rehearse
+      the cut on, guide and ring both showing. A big Start-round button
+      floats over it. */
+  beginIntroPractice() {
+    if (this.state !== 'intro' || this.introPhase !== 'preview') return;
+    this.introPhase = 'practice';
+    this.spawnIn = 150;
+    this.blade.enabled = true;
+    ui.showIntroPractice();
+  }
+
+  /** Leave the intro and run the round for real. */
+  beginRoundFromIntro() {
+    if (this.state !== 'intro') return;
+    store.markIntroSeen(this.introSpecies.id);
+    this.introSpecies = null;
+    this.introPhase = null;
+    ui.clearIntro();
+    this.flowers.length = 0;
+    this.pieces.length = 0;
+    this.pending.length = 0;
+    this.slowmo = 0;
+    this.spawnIn = 500;
+    // The round log's clock starts now, not back when the intro opened; and
+    // reset the frame clock so the first live frame does not bill the round
+    // for however long the player lingered on the intro.
+    this.roundStartTime = this.time;
+    this.last = performance.now();
+    this.state = 'playing';
+    this.blade.enabled = true;
+    ui.showHud(true);
+    this.locateBasket();
   }
 
   pause() {
@@ -214,8 +280,11 @@ export class Game {
     this.flowers.length = 0;
     this.pieces.length = 0;
     this.fx.reset();
+    this.introSpecies = null;
+    this.introPhase = null;
     ui.showHud(false);
     ui.setPracticeMode(false);
+    ui.clearIntro();
     ui.hide('screenPause');
     ui.hide('screenBouquet');
     ui.setBest(store.get('best'));
@@ -251,12 +320,17 @@ export class Game {
   spawn(ambient = false) {
     const alive = this.flowers.filter((f) => f.state === 'alive');
 
-    // Practice: exactly one chosen stem, dead centre, replaced only once
-    // the last one has been cut (or has withered away).
-    if (this.mode === 'practice') {
+    // Practice and the intro's practice beat: exactly one chosen stem,
+    // dead centre, replaced only once the last has been cut (or withered).
+    const introPractice = this.state === 'intro' && this.introPhase === 'practice';
+    if (this.mode === 'practice' || introPractice) {
       if (alive.length > 0) return;
-      const sp = this.practiceSpecies;
-      this.flowers.push(new Flower(sp, this.view.w / 2, this.view, 1));
+      const sp = introPractice ? this.introSpecies : this.practiceSpecies;
+      // The intro stem sprouts straight into its bloom window so the guide
+      // is lit and it can be cut at once.
+      const f = new Flower(sp, this.view.w / 2, this.view, introPractice ? this.round : 1);
+      if (introPractice) f.age = f.lifespan * 0.60;
+      this.flowers.push(f);
       sound.sprout();
       return;
     }
@@ -343,13 +417,13 @@ export class Game {
   /* ── Slicing ────────────────────────────────────────────────────── */
 
   onBladeSegment(a, b, strokeId) {
-    if (this.state !== 'playing') return;
+    if (this.state !== 'playing' && this.state !== 'intro') return;
     const now = performance.now();
     const speed = this.blade.speedAt(this.blade.head);
     if (speed < CFG.minSliceSpeed) return;
 
     for (const f of this.flowers) {
-      if (this.state !== 'playing') break;
+      if (this.state !== 'playing' && this.state !== 'intro') break;
       if (f.state !== 'alive') continue;
       if (f.lastStroke === strokeId) continue;
       const hit = f.sliceTest(a, b);
@@ -456,6 +530,9 @@ export class Game {
     const f = rec.flower;
     const cut = f.species.cut;
     const shape = rec.shape || rec.fallbackShape;
+    // The intro beat grades a cut and shows the breakdown, but it counts
+    // for nothing: no points, no combo, no log, no stem in the basket.
+    const intro = this.state === 'intro';
 
     // A sawing stroke has no meaningful instantaneous angle — judge it by
     // where the whole stroke travelled instead.
@@ -473,55 +550,59 @@ export class Game {
     this.lastGrade = res;
 
     const q = res.quality;
-    if (q >= CFG.comboKeepAbove) {
-      this.streak++;
-      this.combo = Math.min(CFG.comboMax, 1 + this.streak * CFG.comboStep);
-      if (this.streak > 1) sound.combo(this.streak);
-    } else if (q < CFG.comboBreakBelow) {
-      this.breakCombo();
+    if (!intro) {
+      if (q >= CFG.comboKeepAbove) {
+        this.streak++;
+        this.combo = Math.min(CFG.comboMax, 1 + this.streak * CFG.comboStep);
+        if (this.streak > 1) sound.combo(this.streak);
+      } else if (q < CFG.comboBreakBelow) {
+        this.breakCombo();
+      }
     }
 
-    const pts = Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
-    this.roundPoints += pts;
-    this.cutCount++;
-    // Same four axes the in-round popup already grades against (see
-    // weakestPart in scoring.js) — round tracks which one, this keeps all
-    // of them, so a pattern across many cuts can be told apart from noise.
-    this.logEvent('cut', {
-      species: f.species.id,
-      quality: +q.toFixed(2),
-      grade: res.grade.key,
-      pts,
-      parts: {
-        timing: +res.parts.timing.toFixed(2),
-        point: +res.parts.point.toFixed(2),
-        angle: cut.angle == null ? null : +res.parts.angle.toFixed(2),
-        speed: +res.parts.speed.toFixed(2),
-        pattern: +res.parts.pattern.toFixed(2),
-      },
-      angleMeasured: cut.angle == null ? null : Math.round(res.parts.angleDeg ?? 0),
-      angleTarget: cut.angle,
-      speedMeasured: +rec.speed.toFixed(2),
-      speedBand: cut.speed,
-      pattern: cut.pattern,
-      angleFree: cut.angle == null,
-      replayPath: buildReplayPath(rec, cut),
-    });
+    const pts = intro ? 0 : Math.round(CFG.cutBase * (0.25 + q * 0.95) * this.combo);
+    if (!intro) {
+      this.roundPoints += pts;
+      this.cutCount++;
+      // Same four axes the in-round popup already grades against (see
+      // weakestPart in scoring.js) — round tracks which one, this keeps all
+      // of them, so a pattern across many cuts can be told apart from noise.
+      this.logEvent('cut', {
+        species: f.species.id,
+        quality: +q.toFixed(2),
+        grade: res.grade.key,
+        pts,
+        parts: {
+          timing: +res.parts.timing.toFixed(2),
+          point: +res.parts.point.toFixed(2),
+          angle: cut.angle == null ? null : +res.parts.angle.toFixed(2),
+          speed: +res.parts.speed.toFixed(2),
+          pattern: +res.parts.pattern.toFixed(2),
+        },
+        angleMeasured: cut.angle == null ? null : Math.round(res.parts.angleDeg ?? 0),
+        angleTarget: cut.angle,
+        speedMeasured: +rec.speed.toFixed(2),
+        speedBand: cut.speed,
+        pattern: cut.pattern,
+        angleFree: cut.angle == null,
+        replayPath: buildReplayPath(rec, cut),
+      });
+    }
 
     const piece = rec.piece;
     piece.quality = q;
     piece.grade = res.grade;
 
     const gx = piece.x, gy = piece.y;
-    // Practice keeps the full technique breakdown so you can see exactly
-    // what to fix; a real round just shows the grade so cuts stay quick
-    // to read while stems keep flying.
-    const practice = this.mode === 'practice';
-    const weak = (practice && q < 0.8) ? weakestPart(cut, res.parts) : null;
+    // Practice and the intro keep the full technique breakdown so you can
+    // see exactly what to fix; a real round just shows the grade so cuts
+    // stay quick to read while stems keep flying.
+    const showBreakdown = this.mode === 'practice' || intro;
+    const weak = (showBreakdown && q < 0.8) ? weakestPart(cut, res.parts) : null;
     const grade = gradeName(res.grade);
     const fp = this.feedbackPos(gx);
-    this.fx.label(fp.x, fp.y, `+${pts}`, res.grade.color, {
-      sub: weak ? `${grade} · ${weakNoteText(weak)}` : grade,
+    this.fx.label(fp.x, fp.y, intro ? grade : `+${pts}`, res.grade.color, {
+      sub: weak ? (intro ? weakNoteText(weak) : `${grade} · ${weakNoteText(weak)}`) : (intro ? '' : grade),
       size: lerp(15, 22, q),
     });
     this.fx.burst(gx, gy, [...f.palette, '#ffffff'], Math.round(5 + q * 14), { power: 0.6 + q * 0.7 });
@@ -537,24 +618,26 @@ export class Game {
     }
     if (navigator.vibrate) navigator.vibrate(q > 0.8 ? [8, 24, 12] : 14);
 
-    this.harvest.push({
-      species: f.species,
-      palette: f.palette,
-      seed: f.seed,
-      width: f.width,
-      headScale: f.headScale,
-      open: Math.max(0.8, f.open),
-      wilt: f.wilt,
-      stemLen: piece.stemLen,
-      quality: q,
-      timing: rec.timing,
-    });
+    if (!intro) {
+      this.harvest.push({
+        species: f.species,
+        palette: f.palette,
+        seed: f.seed,
+        width: f.width,
+        headScale: f.headScale,
+        open: Math.max(0.8, f.open),
+        wilt: f.wilt,
+        stemLen: piece.stemLen,
+        quality: q,
+        timing: rec.timing,
+      });
 
-    store.bump('harvested');
-    ui.setBasket(this.harvest.length);
-    ui.setCombo(this.combo);
-    ui.setQuota(this.roundPoints, this.quota);
-    ui.setScore(this.total + this.roundPoints);
+      store.bump('harvested');
+      ui.setBasket(this.harvest.length);
+      ui.setCombo(this.combo);
+      ui.setQuota(this.roundPoints, this.quota);
+      ui.setScore(this.total + this.roundPoints);
+    }
 
     if (this.mode === 'practice') {
       this.practiceCuts++;
@@ -621,22 +704,24 @@ export class Game {
       }
       this.flowers = this.flowers.filter((f) => f.state !== 'gone');
 
-      for (let i = this.pending.length - 1; i >= 0; i--) {
-        const rec = this.pending[i];
-        if (rec.graded) { this.pending.splice(i, 1); continue; }
-        const strokeOver = this.blade.strokeId !== rec.strokeId || !this.blade.active;
-        if (rec.shape || strokeOver || now - rec.time > CFG.finalizeDelay) {
-          if (!rec.shape && this.blade.strokeId === rec.strokeId) {
-            rec.shape = this.blade.shape();
-            rec.rawPath = this.blade.points.slice();
-          }
-          this.finalize(rec);
-          this.pending.splice(i, 1);
-        }
-      }
+      this.finalizePending(now);
 
       if (!practice && this.roundPoints >= this.quota) this.endRound('cleared');
       else if (!practice && this.timeLeft <= 0) this.endRound('time');
+    } else if (this.state === 'intro') {
+      // The announcement beat is a still frame; the practice beat runs one
+      // pre-bloomed stem with no clock and no quota — an un-cut stem just
+      // wilts and is replaced at no cost.
+      if (this.introPhase === 'practice') {
+        this.spawnIn -= dt;
+        if (this.spawnIn <= 0) { this.spawn(); this.spawnIn = CFG.practiceRespawn; }
+        for (const f of this.flowers) {
+          f.update(dt, this.time);
+          if (f.state === 'missed') f.state = 'gone';
+        }
+        this.flowers = this.flowers.filter((f) => f.state !== 'gone');
+        this.finalizePending(now);
+      }
     } else if (this.state === 'menu') {
       // A quiet garden keeps growing behind the title.
       this.spawnIn -= dt;
@@ -671,6 +756,24 @@ export class Game {
     if (this.state === 'bouquet' && this.bouquet) {
       this.bouquet.update(dt);
       if (!this.panelShown && this.bouquet.age >= this.bouquet.buildMs) this.showResults();
+    }
+  }
+
+  /** Grade every pending cut whose stroke has finished (or waited out
+      finalizeDelay). Shared by the live round and the intro beat. */
+  finalizePending(now) {
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const rec = this.pending[i];
+      if (rec.graded) { this.pending.splice(i, 1); continue; }
+      const strokeOver = this.blade.strokeId !== rec.strokeId || !this.blade.active;
+      if (rec.shape || strokeOver || now - rec.time > CFG.finalizeDelay) {
+        if (!rec.shape && this.blade.strokeId === rec.strokeId) {
+          rec.shape = this.blade.shape();
+          rec.rawPath = this.blade.points.slice();
+        }
+        this.finalize(rec);
+        this.pending.splice(i, 1);
+      }
     }
   }
 
@@ -827,8 +930,8 @@ export class Game {
       for (const f of list) f.draw(ctx);
       this.scene.drawGrass(ctx, this.time);
       for (const p of this.pieces) p.draw(ctx);
-      if (this.state === 'playing' || this.state === 'paused') {
-        const ring = this.mode === 'practice';
+      if (this.state === 'playing' || this.state === 'paused' || this.state === 'intro') {
+        const ring = this.mode === 'practice' || this.state === 'intro';
         for (const f of list) f.drawGuide(ctx, { ring });
       }
       this.drawBasket(ctx);
