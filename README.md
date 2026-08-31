@@ -27,6 +27,12 @@ a whip. It brightens as the bloom reaches its best. Trace it and you score.
 window where the flower is at its best. It belongs to practice mode: in a live
 round the bloom itself is the cue, and a ring around every head is clutter.
 
+**Each round that adds a species opens on a short intro** — a centered card
+naming the newcomer and its technique, then *Practise cutting now* drops you
+onto one pre-bloomed stem of it, guide and ring showing, clock held. Rehearse
+the cut (graded, with the full breakdown, but scoring nothing), then hit the
+*Start round* button when ready. Shown once ever per species.
+
 | | Technique |
 |---|---|
 | **Tulip** | Slow, straight across the middle of a soft hollow stem |

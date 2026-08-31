@@ -46,6 +46,14 @@ export const ui = {
     practiceName: $('practiceName'),
     practiceHint: $('practiceHint'),
     practiceStats: $('practiceStats'),
+    introKicker: $('introKicker'),
+    introName: $('introName'),
+    introSpecimen: $('introSpecimen'),
+    introSpecs: $('introSpecs'),
+    introHint: $('introHint'),
+    btnIntroPractice: $('btnIntroPractice'),
+    introPracticeHint: $('introPracticeHint'),
+    btnIntroStart: $('btnIntroStart'),
   },
 
   show(id) { $(id)?.classList.remove('hidden'); },
@@ -111,6 +119,47 @@ export const ui = {
       this.el.practiceHint.textContent = speciesHint(species);
       this.el.practiceStats.textContent = t('practice.noCuts');
     }
+  },
+
+  /* ── New-species intro ───────────────────────────────────────── */
+
+  /** Beat one: a centered panel announcing the round's fresh species —
+      a specimen portrait, technique chips, the hint, and the button that
+      drops into the practice beat. Kept in step with a language switch
+      via applyStaticText(). */
+  showIntroPreview(species, dpr = window.devicePixelRatio || 1) {
+    this._introSpecies = species;
+    this._introPhase = 'preview';
+    this.el.introKicker.textContent = t('intro.kicker');
+    this.el.introName.textContent = speciesName(species);
+    this.el.introSpecs.innerHTML = specChips(species);
+    this.el.introHint.textContent = speciesHint(species);
+    this.el.btnIntroPractice.textContent = t('intro.practiceBtn');
+
+    const cv = this.el.introSpecimen;
+    const W = 120, H = 150;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.width = `${W}px`; cv.style.height = `${H}px`;
+    drawSpecimen(cv.getContext('2d'), species, dpr, W, H);
+
+    this.show('screenIntro');
+  },
+
+  /** Beat two: the panel is gone, one stem is on the field, and this
+      floating hint + Start-round button sit over it. */
+  showIntroPractice() {
+    this._introPhase = 'practice';
+    this.el.introPracticeHint.textContent = t('intro.tryCut');
+    this.el.btnIntroStart.textContent = t('intro.start');
+    this.hide('screenIntro');
+    this.show('introPractice');
+  },
+
+  clearIntro() {
+    this._introSpecies = null;
+    this._introPhase = null;
+    this.hide('screenIntro');
+    this.hide('introPractice');
   },
 
   setPracticeStats({ cuts, avg, best }) {
@@ -241,6 +290,8 @@ export const ui = {
     set('practiceSubtitle', t('practice.subtitle'));
     set('btnPracticeBack', t('practice.back'));
     if (this._practiceSpecies) this.setPracticeMode(true, this._practiceSpecies);
+    if (this._introSpecies && this._introPhase === 'preview') this.showIntroPreview(this._introSpecies);
+    else if (this._introSpecies && this._introPhase === 'practice') this.showIntroPractice();
 
     set('levelsTitle', t('levels.title'));
     set('levelsSubtitle', t('levels.subtitle'));
